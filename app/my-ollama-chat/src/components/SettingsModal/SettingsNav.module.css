@@ -1,0 +1,84 @@
+.nav {
+  flex-shrink: 0; 
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0;
+  gap: 16px;
+}
+  
+  .navList { 
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%; 
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .navButton {
+    display: flex; 
+    flex-direction: row;             
+    align-items: center;             
+    padding: 10px;             
+    gap: 10px;             
+    height: 52px;             
+    width: 100%; 
+    min-width: 116px; 
+    max-width: 220px;
+  
+    background-color: transparent;
+    border: 1px solid transparent; 
+    color: #FFFFFF;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 33px;             
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    font-size: 20px; 
+    font-family: 'Roboto', sans-serif;             
+    font-weight: 400;             
+    line-height: 23px;             
+    flex: none;             
+    flex-grow: 0;             
+  }
+  
+  .navButton:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  
+  .navButton.active {
+    border: 1px solid #FFFFFF;             
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .navIcon {
+    width: 32px;             
+    height: 32px;             
+    flex-shrink: 0;
+    fill: currentColor;
+    stroke: none;
+    flex: none;             
+    order: 0;             
+    flex-grow: 0;             
+  }
+  
+  
+  .navLabel {
+    height: 23px;             
+    font-family: 'Roboto', sans-serif;             
+    font-style: normal;
+    font-weight: 400;             
+    font-size: 20px;             
+    line-height: 23px;             
+    display: flex;             
+    align-items: center;             
+    color: #FFFFFF;             
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: none;             
+    order: 1;             
+    flex-grow: 0;             
+  }
