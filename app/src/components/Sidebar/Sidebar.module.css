@@ -24,64 +24,14 @@
   display: flex; 
   flex-direction: row;
   align-items: center; 
-  padding: 20px 75px;
-  gap: 30px;
+  padding: 20px 97px;
+  gap: 50px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0; 
   box-sizing: border-box;
 }
 
-/* ---  Data Collection --- */
-.dataCollectionButton {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  padding: 8px 19px;
-  gap: 9px;
-  width: 180px; 
-  height: 32px; 
-  white-space: nowrap;
-  flex-shrink: 0;
-  border: 1px solid #FFFFFF;
-  border-radius: 33px;
-  background-color: transparent;
-  color: #FFFFFF;
-  cursor: pointer;
-  font-family: 'Roboto', sans-serif;
-  font-style: normal;
-  font-weight: 400;
-  font-size: 14px;
-  line-height: 16px;
-  letter-spacing: 0.0125em;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-}
-.dataCollectionButton:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-.dataCollectionButton .buttonIcon { 
-  width: 15px;
-  height: 16px;
-  fill: #FFFFFF;
-  flex-shrink: 0;
-}
-.dataCollectionButton svg { 
-  width: 15px;
-  height: 16px;
-  fill: currentColor; 
-  flex-shrink: 0;
-}
-.dataCollectionButton span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.searchButton {
+.sidebaricons {
   background: none;
   border:none;
   color: var(--icon-color);
@@ -93,15 +43,12 @@
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s ease, border-color 0.2s ease;
-  width: 26px; 
-  height: 26px; 
+  width: 24px; 
+  height: 24px; 
   flex-shrink: 0;
 }
-.searchButton:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.8);
-}
-.searchButton svg {
+
+.sidebaricons svg {
   width: 100%;
   height: 100%;
   fill: currentColor;

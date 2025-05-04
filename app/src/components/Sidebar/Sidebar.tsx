@@ -3,6 +3,7 @@ import styles from './Sidebar.module.css';
 import TrashIcon from '../../assets/delete-icon.svg?react';
 import DatabaseIcon from '../../assets/database-icon.svg?react'; 
 import SearchIcon from '../../assets/search-chat-button.svg?react';
+import Archive from '../../assets/archive-icon.svg?react';
 
 
 interface ChatListItem {
@@ -35,12 +36,13 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className={`${styles.sidebarContainer} ${isOpen ? styles.visible : ''}`}>
 
         <div className={styles.sidebarActions}>
-             {/* Data Collection */}
-             <button className={styles.dataCollectionButton}>
+             <button className={styles.sidebaricons}>
              <DatabaseIcon />
-               <span>Data collection</span>
              </button>
-             <button className={styles.searchButton} aria-label="Search">
+             <button className={styles.sidebaricons} aria-label="archive">
+               <Archive />
+             </button>  
+             <button className={styles.sidebaricons} aria-label="Search">
                <SearchIcon />
              </button>
         </div>
