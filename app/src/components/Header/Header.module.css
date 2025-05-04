@@ -1,0 +1,95 @@
+
+.topIcons {
+  position: absolute;
+  top: 15px; 
+  padding: 10px;
+  display: flex;
+  gap: 15px;
+  font-size: 1.1em;
+  align-items: center;
+}
+
+.sidebarToggleContainer {
+  position: absolute;
+  top: 21px; 
+  left: 16px;
+  z-index: 201;
+  padding: 0; 
+}
+
+.sidebarToggleButton {
+background: none; 
+border: none;
+cursor: pointer;
+margin: 0;
+padding: 5px;
+display: flex;
+align-items: center;
+justify-content: center;
+line-height: 0;
+color: var(--icon-color, #FFFFFF);
+}
+
+.sidebarToggleButton svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  display: block;
+}
+
+.mainHeaderControls {
+  position: absolute;
+  top: 21px; 
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  transition: left 0.3s ease-in-out;
+  left: calc(16px + 24px + 10px + 16px);
+  left: 66px;
+}
+
+.mainHeaderControls.openState {
+  left: calc(320px + 16px);
+  left: 336px; /* Спрощений варіант */
+}
+
+.mainHeaderControls {
+  position: absolute;
+  top: 21px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  transition: left 0.3s ease-in-out;
+  left: 66px;
+}
+
+.mainHeaderControls.openState {
+  left: calc(320px + 16px); 
+  left: 336px;
+}
+
+.newChatHeaderButton {
+  background: none; 
+  border: none;     
+  padding: 5px;  
+  margin: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  transition: background-color 0.2s ease;
+}
+
+.newChatHeaderButton svg {
+  width: 24px;  
+  height: 24px;
+  display: block;
+  fill: currentColor;
+}
+
+
+.topRightIcons {
+  right: 15px;
+  z-index: 10;
+}
