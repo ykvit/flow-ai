@@ -49,7 +49,7 @@ app/.vite-inspect/
 app/.vite/
 
 
-backend/data/
+backend/data/*
 backend/data/*.db
 backend/data/*.db-journal
 
