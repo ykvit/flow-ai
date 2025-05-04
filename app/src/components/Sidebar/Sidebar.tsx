@@ -4,6 +4,7 @@ import TrashIcon from '../../assets/delete-icon.svg?react';
 import DatabaseIcon from '../../assets/database-icon.svg?react'; 
 import SearchIcon from '../../assets/search-chat-button.svg?react';
 import Archive from '../../assets/archive-icon.svg?react';
+import EditNameChat from '../../assets/edit-icon.svg?react';
 
 
 interface ChatListItem {
@@ -17,6 +18,7 @@ interface SidebarProps {
   activeChatId: string | null;
   onSelectChat: (chatId: string) => void;
   onDeleteChat: (chatId: string) => void;
+  onEditChat: (chatId: string) => void; 
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -25,11 +27,16 @@ const Sidebar: React.FC<SidebarProps> = ({
     activeChatId,
     onSelectChat,
     onDeleteChat,
+    onEditChat,
 }) => {
 
     const handleDelete = (e: React.MouseEvent, chatId: string) => {
         e.stopPropagation();
         onDeleteChat(chatId);
+    };
+    const handleEdit = (e: React.MouseEvent, chatId: string) => {
+        e.stopPropagation(); 
+        onEditChat(chatId); 
     };
 
   return (
@@ -64,20 +71,32 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <span className={styles.chatTitle}>
                             {chat.title || "Untitled Chat"}
                         </span>
-                        <button
-                           className={styles.chatDeleteButton}
-                           onClick={(e) => handleDelete(e, chat.id)}
-                           aria-label={`Delete chat ${chat.title || 'Untitled Chat'}`}
-                           title={`Delete chat ${chat.title || 'Untitled Chat'}`}
-                        >
-                           <TrashIcon />
-                        </button>
+
+
+                        <div className={styles.chatItemActions}>
+                            <button
+                               className={styles.chatEditButton} 
+                               onClick={(e) => handleEdit(e, chat.id)} 
+                               aria-label={`Edit chat ${chat.title || 'Untitled Chat'}`}
+                               title={`Edit chat ${chat.title || 'Untitled Chat'}`}
+                            >
+                               <EditNameChat />
+                            </button>
+                            <button
+                               className={styles.chatDeleteButton}
+                               onClick={(e) => handleDelete(e, chat.id)}
+                               aria-label={`Delete chat ${chat.title || 'Untitled Chat'}`}
+                               title={`Delete chat ${chat.title || 'Untitled Chat'}`}
+                            >
+                               <TrashIcon />
+                            </button>
+                        </div>
                     </li>
                 ))}
             </ul>
         </div>
 
-    </div> 
+    </div>
   );
 };
 

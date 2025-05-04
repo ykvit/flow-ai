@@ -120,7 +120,7 @@ app.post('/api/chats/:chatId/messages', (req, res) => {
         messagesToAdd.forEach(msg => {
             if (errorOccurred) return;
             if (!msg || typeof msg.content !== 'string' || !['user', 'assistant'].includes(msg.role)) {
-                 errorOccurred = new Error(`Invalid message format: ${JSON.stringify(msg)}`); // Присвоюємо об'єкт помилки
+                 errorOccurred = new Error(`Invalid message format: ${JSON.stringify(msg)}`); 
                  console.error(errorOccurred.message);
                  return;
             }
@@ -163,6 +163,45 @@ app.delete('/api/chats/:chatId', (req, res) => {
         if (this.changes === 0) { console.log(`Chat ${chatId} not found for deletion`); res.status(404).json({ "error": "Chat not found" }); return; }
         console.log(`Successfully deleted chat ${chatId}, changes: ${this.changes}`);
         res.status(204).send();
+    });
+});
+
+
+// PATCH /api/chats/:chatId (для оновлення назви чату)
+app.patch('/api/chats/:chatId', (req, res) => {
+    const chatId = req.params.chatId;
+    const { title: newTitle } = req.body; 
+
+    console.log(`Received PATCH /api/chats/${chatId} request with new title: "${newTitle}"`);
+
+    // Перевіряємо, чи передано коректну назву
+    if (typeof newTitle !== 'string' || newTitle.trim() === '') {
+        console.error("!!! Invalid or missing title in request body");
+        return res.status(400).json({ "error": "Request body must contain a valid 'title' string" });
+    }
+
+    const trimmedNewTitle = newTitle.trim();
+    const nowISO = new Date().toISOString(); 
+
+    const sql = `UPDATE chats SET title = ?, lastModified = ? WHERE id = ?`;
+    const params = [trimmedNewTitle, nowISO, chatId];
+
+    db.run(sql, params, function (err) {
+        if (err) {
+            console.error(`!!! Error updating chat title for ${chatId}:`, err.message);
+            res.status(500).json({ "error": "Failed to update chat title", "details": err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            console.log(`Chat ${chatId} not found for title update`);
+            res.status(404).json({ "error": "Chat not found" }); 
+            return;
+        }
+
+
+        console.log(`Successfully updated title for chat ${chatId}, changes: ${this.changes}`);
+        res.status(200).json({ message: "Chat title updated successfully" });
+       
     });
 });
 

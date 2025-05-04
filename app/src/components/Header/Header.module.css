@@ -48,7 +48,7 @@
 
 .mainHeaderControls.openState {
   left: calc(320px + 16px);
-  left: 336px; /* Спрощений варіант */
+  left: 336px; 
 }
 
 .mainHeaderControls {

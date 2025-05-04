@@ -6,18 +6,19 @@ import svgr from 'vite-plugin-svgr'
 export default defineConfig({
   plugins: [react(), svgr()],
   server: {
+    port: 3000,
     proxy: {
-      // Проксі для Ollama API
+      // Ollama API
       '/ollama-api': {
-        target: 'http://localhost:11434', // Твій Ollama endpoint
+        target: 'http://localhost:11434',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ollama-api/, '/api'),
       },
-      // --- НОВЕ ПРОКСІ для твого бекенду ---
+      // backend
       '/backend-api': {
-        target: 'http://localhost:3001', // Порт твого бекенд-сервера
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/backend-api/, '/api'), // Переписуємо шлях на /api
+        rewrite: (path) => path.replace(/^\/backend-api/, '/api'),
       },
     },
   },
