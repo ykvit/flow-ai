@@ -1,0 +1,97 @@
+.topIcons {
+    position: absolute;
+    top: 15px;
+    padding: 10px;
+    display: flex;
+    gap: 15px;
+    font-size: 1.1em;
+    align-items: center;
+  }
+  
+  .topLeftIcons {
+    left: 15px;
+    z-index: 201;
+    transition: left 0.3s ease-in-out;
+    display: flex;
+    align-items: center;
+    gap: 15px; 
+  }
+
+.dataCollectionButton {
+    display: flex;
+    align-items: center;
+    gap: 8px; 
+    background-color: transparent; 
+    border: 1px solid rgba(255, 255, 255, 0.8); 
+    color: var(--text-color); 
+    padding: 6px 15px; 
+    border-radius: 33px; 
+    cursor: pointer;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.9em; 
+    white-space: nowrap;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    margin-left: calc(32px - 15px);
+  }
+  
+  .dataCollectionButton:hover {
+    background-color: rgba(255, 255, 255, 0.1); 
+    border-color: white;
+  }
+  
+  .buttonIcon {
+    display: flex; 
+    align-items: center;
+  }
+
+  .searchButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.1); 
+    border: none; 
+    color: var(--text-color);
+    width: 32px; 
+    height: 32px;
+    padding: 0;
+    border-radius: 50%; 
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  .searchButton:hover {
+    background-color: rgba(255, 255, 255, 0.2); 
+  }
+  
+  .searchButton .buttonIcon {
+      font-size: 1.1em; 
+  }
+  
+  .topRightIcons {
+    right: 15px;
+    z-index: 10;
+  }
+  
+  .sidebarToggleButton {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: inherit;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  
+  .sidebarToggleButton svg {
+    display: block;
+    fill: currentColor; 
+  }
+  
+  .topLeftIcons span,
+  .topRightIcons span {
+    color: var(--text-color);
+  }
