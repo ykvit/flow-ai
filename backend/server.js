@@ -167,14 +167,14 @@ app.delete('/api/chats/:chatId', (req, res) => {
 });
 
 
-// PATCH /api/chats/:chatId (для оновлення назви чату)
+// PATCH /api/chats/:chatId (to update the chat name)
 app.patch('/api/chats/:chatId', (req, res) => {
     const chatId = req.params.chatId;
     const { title: newTitle } = req.body; 
 
     console.log(`Received PATCH /api/chats/${chatId} request with new title: "${newTitle}"`);
 
-    // Перевіряємо, чи передано коректну назву
+    // Checking whether the correct name was passed
     if (typeof newTitle !== 'string' || newTitle.trim() === '') {
         console.error("!!! Invalid or missing title in request body");
         return res.status(400).json({ "error": "Request body must contain a valid 'title' string" });

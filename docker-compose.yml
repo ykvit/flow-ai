@@ -1,5 +1,5 @@
 services:
-  # Бекенд сервіс (Node.js + Express + SQLite)
+  # Backend service (Node.js + Express + SQLite)
   backend:
     build:
       context: ./backend
@@ -14,7 +14,7 @@ services:
     networks:
       - flow-network
 
-  # Фронтенд сервіс (Nginx роздає зібраний React/Vite)
+  # Frontend service (Nginx distributes compiled React/Vite)
   frontend:
     build:
       context: ./app
@@ -28,7 +28,7 @@ services:
     networks:
       - flow-network
 
-  # Ollama сервіс
+  # Ollama service
   ollama:
     image: ollama/ollama
     ports:
@@ -51,7 +51,7 @@ networks:
   flow-network:
 
 
-# Визначаємо іменовані томи, якими керує Docker Compose
+# Defining named volumes managed by Docker Compose
 volumes:
   sqlite_data:
   ollama:
