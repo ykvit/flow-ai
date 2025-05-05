@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import styles from './ChatInput.module.css';
 import PlusIcon from '../../assets/plus-icon.svg?react';
 import BulbIcon from '../../assets/bulb-icon.svg?react';
@@ -34,22 +34,26 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, inputRe
   };
 
   return (
+
     <div className={styles.inputAreaContainer}>
-      <div className={styles.inputBgBlur}></div>
-      <div className={styles.inputBgWhite}></div>
+  <div
+    className={`${styles.inputBgBlur} ${isLoading ? styles.loadingGradientAnimation : ''}`}
+  ></div>
+  <div className={styles.inputBgWhite}></div>
 
-      {inputValue === '' && !isLoading && (
-        <div className={styles.inputPlaceholderText}>Ask anything...</div>
-      )}
+  {inputValue === '' && !isLoading && (
+    <div className={styles.inputPlaceholderText}>Ask anything...</div>
+  )}
 
-      <input
-        ref={inputRef} 
+
+<input
+        ref={inputRef}
         type="text"
         className={styles.chatInput}
         value={inputValue}
         onChange={handleInputChange}
         onKeyPress={handleKeyPress}
-        disabled={isLoading}
+        disabled={isLoading} 
         placeholder=""
       />
 

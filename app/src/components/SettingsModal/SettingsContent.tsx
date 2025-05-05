@@ -3,12 +3,13 @@ import React from 'react';
 import styles from './SettingsContent.module.css';
 import { SettingsCategory } from './SettingsModal';
 
-// ... (імпорт компонентів категорій) ...
+
 import GeneralSettings from './categories/GeneralSettings';
 import ModelsSettings from './categories/ModelsSettings';
 
-interface OllamaTagModel { name: string; /* ... */ }
-// ...
+// Remove the local definition and import the shared OllamaTagModel interface
+import { OllamaTagModel } from '../../types'; 
+
 
 interface SettingsContentProps {
   activeCategory: SettingsCategory;
