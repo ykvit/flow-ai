@@ -4,7 +4,6 @@ import modelStyles from './ModelsSettings.module.css';
 import RefreshIcon from '../../../assets/settings/refresh-con.svg?react'; 
 import TrashIcon from '../../../assets/settings/delete-icon.svg?react'; 
 import CustomDropdown, { DropdownOption } from '../../CustomDropdown/CustomDropdown';
-import CloudDownloadIcon from '../../../assets/settings/download-icon.svg?react'; 
 
 interface OllamaTagModel {
   name: string;

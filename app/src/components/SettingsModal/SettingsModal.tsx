@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import Modal from '../Modal/Modal';
 import SettingsNav from './SettingsNav';
 import SettingsContent from './SettingsContent';
-import modalStyles from '../Modal/Modal.module.css'; 
 import layoutStyles from './SettingsModal.module.css';
 
 import GeneralIcon from '../../assets/settings/settings-general.svg?react';
@@ -13,7 +12,7 @@ import AboutIcon from '../../assets/settings/settings-about.svg?react';
 
 export type SettingsCategory = 'general' | 'appearance' | 'models' | 'connections' | 'data' | 'about';
 
-interface OllamaTagModel { name: string; /* ... інші поля ... */ }
+import { OllamaTagModel } from '../../types'; 
 
 const categories: { id: SettingsCategory; label: string; icon: React.FC<React.SVGProps<SVGSVGElement>> }[] = [
   { id: 'general', label: 'General', icon: GeneralIcon },

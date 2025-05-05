@@ -1,29 +1,16 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import styles from './App.module.css';
 
-import { Message as AppMessage } from './types/index'; 
-
-interface OllamaMessage { role: 'user' | 'assistant' | 'system'; content: string; }
-interface OllamaChatResponse { model: string; created_at: string; message: OllamaMessage; done: boolean; /* ... */ }
-interface OllamaTagModel { name: string; model: string; modified_at: string; size: number; digest: string; details: { /* ... */ }; }
-interface OllamaTagsResponse { models: OllamaTagModel[]; }
-
-interface Chat {
-    id: string;
-    title: string;
-    messages: AppMessage[];
-    createdAt: Date;
-    lastModified: Date;
-    model: string; }
-interface BackendChatsListItem {
-    id: string;
-    title: string;
-    createdAt: string | Date;
-    lastModified: string | Date;
-    model: string;
-}
-interface BackendChatsResponse { chats: BackendChatsListItem[]; }
-interface BackendChatResponse { chat: Chat; }
+import {
+    Message as AppMessage, 
+    OllamaTagModel, 
+    Chat,            
+    BackendChatResponse,  
+    BackendChatsResponse, 
+    OllamaMessage, 
+    OllamaChatResponse,
+    OllamaTagsResponse
+} from './types';
 
 import Sidebar from './components/Sidebar/Sidebar';
 import Header from './components/Header/Header';
@@ -61,20 +48,24 @@ function App() {
             const response = await fetch('/backend-api/chats');
             if (!response.ok) throw new Error(`Failed to fetch chats list: ${response.statusText}`);
             const data: BackendChatsResponse = await response.json();
-            const chatsFromBackend = (data.chats || []).map(c => ({
-                ...c,
-                messages: [], 
-                createdAt: new Date(c.createdAt),
-                lastModified: new Date(c.lastModified)
+
+            // --- ВИПРАВЛЕННЯ ТУТ ---
+            // Перетворюємо BackendChatsListItem на Chat, включаючи ВСІ поля
+            const chatsFromBackend: Chat[] = (data.chats || []).map(c => ({
+                id: c.id,             // <--- Додаємо id
+                title: c.title,         // <--- Додаємо title
+                messages: [],           // Повідомлення ще не завантажені
+                createdAt: new Date(c.createdAt), 
+                lastModified: new Date(c.lastModified),
+                model: c.model 
             }));
+
+
             const sortedChats = chatsFromBackend.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
             setSavedChats(sortedChats);
             console.log("Loaded chats:", sortedChats.length);
-            if (sortedChats.length > 0) {
-                setActiveChatId(sortedChats[0].id);
-            } else {
-                setActiveChatId(null);
-            }
+            setActiveChatId(sortedChats.length > 0 ? sortedChats[0].id : null);
+
         } catch (error) {
             console.error("Error loading initial chats:", error);
             setActiveChatId(null);
@@ -324,7 +315,7 @@ function App() {
     
         if (!selectedModel) {
             console.error("No model selected!");
-            const noModelErrorMsg: AppMessage = { sender: 'ai', text: 'Error: No AI model selected. Please select one in settings.' };
+            const noModelErrorMsg: AppMessage = { sender: 'assistant', text: 'Error: No AI model selected. Please select one in settings.' };
             setSavedChats(prev => prev.map(c => c.id === currentChatId ? {...c, messages: [...(c.messages || []), noModelErrorMsg ]} : c)
                 .sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime()));
             return;
@@ -336,7 +327,7 @@ function App() {
     
         const messagesForOllamaApi: OllamaMessage[] = [
             ...previousMessages.map(msg => ({
-                role: msg.sender === 'ai' ? 'assistant' : 'user' as ('user' | 'assistant'),
+                role: msg.sender === 'assistant' ? 'assistant' : 'user' as ('user' | 'assistant'),
                 content: msg.text
             })),
             { role: 'user', content: newUserMessage.text } 
@@ -382,21 +373,25 @@ function App() {
              const ollamaData: OllamaChatResponse = await ollamaResponse.json();
              if (ollamaData.message?.content) {
                  aiResponseText = ollamaData.message.content.trim();
-                 console.log("Ollama Response OK:", aiResponseText.substring(0, 100) + "...");
+                 if (aiResponseText) {
+                     console.log("Ollama Response OK:", aiResponseText.substring(0, 100) + "...");
+                 } else {
+                     console.warn("Ollama Response is null or empty.");
+                 }
              } else {
                  console.warn("Ollama response format unexpected:", ollamaData);
-                 throw new Error("AI returned empty or invalid response format.");
+                 throw new Error("assistant returned empty or invalid response format.");
              }
         } catch (error) {
              console.error("Error calling Ollama /api/chat:", error);
-             errorMessageText = error instanceof Error ? error.message : "Unknown error contacting AI";
+             errorMessageText = error instanceof Error ? error.message : "Unknown error contacting assistant";
         } finally {
              setIsLoading(false);
              inputRef.current?.focus();
         }
     
-        const aiResponseMessage: AppMessage | null = aiResponseText ? { sender: 'ai', text: aiResponseText } : null;
-        const errorResponseMessageForUI: AppMessage | null = errorMessageText ? { sender: 'ai', text: `Error: ${errorMessageText}` } : null;
+        const aiResponseMessage: AppMessage | null = aiResponseText ? { sender: 'assistant', text: aiResponseText } : null;
+        const errorResponseMessageForUI: AppMessage | null = errorMessageText ? { sender: 'assistant', text: `Error: ${errorMessageText}` } : null;
         const messageToAddToUi = aiResponseMessage || errorResponseMessageForUI;
     
         if (messageToAddToUi) {
@@ -433,7 +428,7 @@ function App() {
              } catch (error) {
                 console.error("Error saving messages to backend:", error);
                 const saveErrorMessageForUi: AppMessage = {
-                   sender: 'ai', // Від імені системи/AI
+                   sender: 'assistant', 
                    text: `⚠️ Error saving chat: ${error instanceof Error ? error.message : 'Unknown error'}`
                 };
                 setSavedChats(prevChats => prevChats.map(chat =>
