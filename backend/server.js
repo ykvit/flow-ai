@@ -11,9 +11,10 @@ app.use(express.json());
 
 // --- API Endpoints ---
 
+// GET /api/chats
 app.get('/api/chats', (req, res) => {
     console.log("Received GET /api/chats request");
-   
+    // Додано model до SELECT
     const sql = "SELECT id, title, createdAt, lastModified, model FROM chats ORDER BY lastModified DESC";
     db.all(sql, [], (err, rows) => {
         if (err) {
@@ -23,7 +24,6 @@ app.get('/api/chats', (req, res) => {
         }
         console.log(`Successfully fetched ${rows.length} chats from DB`);
         try {
-        
             res.json({ chats: rows });
         } catch (mapError) {
             console.error("!!! Error processing chat rows:", mapError.message);
@@ -36,7 +36,6 @@ app.get('/api/chats', (req, res) => {
 app.get('/api/chats/:chatId', (req, res) => {
     const chatId = req.params.chatId;
     console.log(`Received GET /api/chats/${chatId} request`);
-
     const sqlChat = "SELECT id, title, createdAt, lastModified, model, systemPrompt, ollamaOptions FROM chats WHERE id = ?";
     const sqlMessages = `SELECT id, chatId, role, content, timestamp FROM messages WHERE chatId = ? ORDER BY timestamp ASC`;
 
@@ -68,15 +67,13 @@ app.get('/api/chats/:chatId', (req, res) => {
                     createdAt: chatRow.createdAt,
                     lastModified: chatRow.lastModified,
                     model: chatRow.model,
-                    systemPrompt: chatRow.systemPrompt,
-                 
+                    systemPrompt: chatRow.systemPrompt, 
                     ollamaOptions: chatRow.ollamaOptions ? JSON.parse(chatRow.ollamaOptions) : null, 
                     messages: messageRows.map(msg => ({
-            
-                        id: msg.id, 
-                        sender: msg.role, 
+                        id: msg.id,
+                        sender: msg.role,
                         text: msg.content,
-                        timestamp: msg.timestamp 
+                        timestamp: msg.timestamp
                     }))
                 };
                 res.json({ chat });
@@ -88,7 +85,7 @@ app.get('/api/chats/:chatId', (req, res) => {
     });
 });
 
-// POST /api/chats
+// POST /api/chats 
 app.post('/api/chats', (req, res) => {
     console.log("Received POST /api/chats request");
     const {
@@ -97,7 +94,6 @@ app.post('/api/chats', (req, res) => {
         systemPrompt = null, 
         ollamaOptions = null 
     } = req.body;
-
 
     if (!model || typeof model !== 'string' || model.trim() === '') {
          console.error("!!! Missing or invalid 'model' in request body");
@@ -130,7 +126,6 @@ app.post('/api/chats', (req, res) => {
         ollamaOptions: optionsString
     };
 
-
     const sql = `INSERT INTO chats (id, title, createdAt, lastModified, model, systemPrompt, ollamaOptions) VALUES (?, ?, ?, ?, ?, ?, ?)`;
     const params = [
         newChatData.id,
@@ -149,10 +144,9 @@ app.post('/api/chats', (req, res) => {
             return;
         }
         console.log(`Successfully created new chat with ID: ${newChatData.id}, Model: ${newChatData.model}`);
-
         const createdChatForResponse = {
             ...newChatData,
-            ollamaOptions: ollamaOptions, 
+            ollamaOptions: ollamaOptions,
             messages: [],
         };
         res.status(201).json({ chat: createdChatForResponse });
@@ -162,7 +156,6 @@ app.post('/api/chats', (req, res) => {
 // POST /api/chats/:chatId/messages
 app.post('/api/chats/:chatId/messages', (req, res) => {
     const chatId = req.params.chatId;
- 
     const { messages: messagesToAdd } = req.body;
     console.log(`Received POST /api/chats/${chatId}/messages request`);
 
@@ -172,7 +165,6 @@ app.post('/api/chats/:chatId/messages', (req, res) => {
 
     const nowISO = new Date().toISOString();
     const sqlInsertMsg = `INSERT INTO messages (id, chatId, role, content, timestamp) VALUES (?, ?, ?, ?, ?)`;
-   
     const sqlUpdateChat = `UPDATE chats SET lastModified = ? WHERE id = ?`;
     const updateChatParams = [nowISO, chatId];
 
@@ -182,14 +174,13 @@ app.post('/api/chats/:chatId/messages', (req, res) => {
 
         messagesToAdd.forEach(msg => {
             if (errorOccurred) return;
-        
             if (!msg || typeof msg.content !== 'string' || !['user', 'assistant', 'system', 'tool'].includes(msg.role)) {
                 errorOccurred = new Error(`Invalid message format or role: ${JSON.stringify(msg)}`);
                 console.error(errorOccurred.message);
                 return;
             }
             const messageId = uuidv4();
-            const params = [messageId, chatId, msg.role, msg.content, nowISO]; // Використовуємо msg.role
+            const params = [messageId, chatId, msg.role, msg.content, nowISO];
             db.run(sqlInsertMsg, params, function (err) {
                 if (err) { errorOccurred = err; console.error("!!! Error inserting message:", err.message); }
                 else { console.log(`Inserted message ${messageId} (role: ${msg.role}) for chat ${chatId}`); }
@@ -217,7 +208,7 @@ app.post('/api/chats/:chatId/messages', (req, res) => {
     });
 });
 
-// DELETE /api/chats/:chatId 
+// DELETE /api/chats/:chatId
 app.delete('/api/chats/:chatId', (req, res) => {
     const chatId = req.params.chatId;
     console.log(`Received DELETE /api/chats/${chatId} request`);
@@ -239,7 +230,7 @@ app.delete('/api/chats/:chatId', (req, res) => {
 });
 
 
-// PATCH /api/chats/:chatId 
+// PATCH /api/chats/:chatId
 app.patch('/api/chats/:chatId', (req, res) => {
     const chatId = req.params.chatId;
     const { title, systemPrompt, ollamaOptions } = req.body;
@@ -292,7 +283,6 @@ app.patch('/api/chats/:chatId', (req, res) => {
 
     if (setClauses.length <= 1) {
         console.warn(`PATCH /api/chats/${chatId}: No valid fields provided for update.`);
-    
          return res.status(400).json({ "error": "No valid fields provided for update (e.g., title, systemPrompt, ollamaOptions)" });
     }
 

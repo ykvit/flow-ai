@@ -1,10 +1,9 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs'); 
 
 const dbDir = path.resolve(__dirname, 'data');
 const dbPath = path.join(dbDir, 'database.db');
-
 
 if (!fs.existsSync(dbDir)) {
     try {
@@ -12,7 +11,7 @@ if (!fs.existsSync(dbDir)) {
         console.log(`Created directory: ${dbDir}`);
     } catch (mkdirError) {
         console.error(`!!! Error creating directory ${dbDir}:`, mkdirError.message);
-        process.exit(1); 
+        process.exit(1);
     }
 }
 
@@ -59,7 +58,8 @@ function createTables() {
         timestamp TEXT NOT NULL,
         FOREIGN KEY (chatId) REFERENCES chats(id) ON DELETE CASCADE -- Забезпечує видалення повідомлень
     );`;
-
+    // images TEXT NULL,
+    // toolCalls TEXT NULL,
 
     const createMessagesChatIdIndex = `
     CREATE INDEX IF NOT EXISTS idx_messages_chatId ON messages (chatId);
