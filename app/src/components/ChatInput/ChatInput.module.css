@@ -24,189 +24,158 @@
   transition: background 0.5s ease;
 }
   
-  .inputBgWhite {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    left: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255);
-    border-radius: 33px; 
-    z-index: 2;
-    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1); 
-  }
-  
-  .inputPlaceholderText {
-    position: absolute;
-    top: 10px; 
-    left: 25px;
-    right: 60px; 
-    height: 50px; 
-    display: flex; 
-    align-items: center; 
-    font-family: 'Roboto', sans-serif;
-    font-weight: 400;
-    font-size: 20px;
-    color: var(--text-color-placeholder);
-    z-index: 3;
-    pointer-events: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .chatInput {
-    position: absolute;
-    top: 10px; 
-    left: 25px;
-    right: 60px; 
-    height: 50px;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text-color-dark);
-    font-family: 'Roboto', sans-serif;
-    font-size: 20px;
-    padding: 0; 
-    z-index: 4;
-  }
-  .chatInput::placeholder {
-      color: transparent; 
-  }
-  
+.inputBgWhite {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255);
+  border-radius: 33px; 
+  z-index: 2;
+  box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1); 
+}
 
-  .actionButton {
-    position: absolute;
-    bottom: 18px; 
-    z-index: 5; 
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-sizing: border-box;
-    height: 32px; 
-    border: none;
-    transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
-  }
-  
-  .actionButton:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
+@keyframes animateGradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 
-  .addButton,
-  .sourcesButton {
-    width: 32px;
-    padding: 0;
-    background: var(--button-dark-bg);
-    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
-    border-radius: 16px;
-    color: var(--icon-color);
-  }
-  .addButton:not(:disabled):hover,
-  .sourcesButton:not(:disabled):hover {
-      background: var(--button-dark-hover-bg);
-  }
-  
-  .addButton svg,
-  .sourcesButton svg {
-      width: 16px;
-      height: 16px;
-  }
-  
-  .addButton { left: 25px; }
-  .sourcesButton { left: 65px; }
-  
-  .reasoningButton {
-    left: 105px;
-    padding: 0 12px; 
-    gap: 8px;
-    background: var(--button-dark-bg);
-    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
-    border-radius: 33px; 
-    color: var(--icon-color);
-    font-family: 'Roboto', sans-serif;
-    font-size: 14px;
-    line-height: 16px; 
-  }
-  .reasoningButton:not(:disabled):hover {
-      background: var(--button-dark-hover-bg);
-  }
-  .reasoningButton svg {
-      width: 10px;
-      height: 16px;
-      flex-shrink: 0;
 
-  }
-  .reasoningButton span {
-      height: 16px;
-      display: inline-block;
-  }
-  
-  .sendButton {
-    width: 32px;
-    right: 25px;
-    padding: 0;
-    border: 2px solid var(--text-color-dark);
-    border-radius: 16px;
-    background: transparent;
-    color: var(--text-color-dark);
-  }
-  .sendButton svg {
+
+.inputAreaContainer.loading .inputBgBlur {
+  background: linear-gradient(90deg,
+
+
+    var(--gradient-start) 0%,
+    var(--gradient-start) 5%,
+    var(--gradient-middle) 15%,
+    var(--gradient-middle) 25%,
+    var(--gradient-end) 35%,
+    var(--gradient-end) 45%,
+    var(--gradient-start) 50%,
+    var(--gradient-start) 55%,
+    var(--gradient-middle) 65%,
+    var(--gradient-middle) 75%,
+    var(--gradient-end) 85%,
+    var(--gradient-end) 95%,
+    var(--gradient-middle) 100%
+  );
+
+  background-size: 600% 100%;
+  animation: animateGradientFlow 10s linear infinite;
+  filter: blur(33px);
+  opacity: 5;
+  transform: none;
+}
+
+.inputPlaceholderText {
+  position: absolute;
+  top: 10px; 
+  left: 25px;
+  right: 60px; 
+  height: 50px; 
+  display: flex; 
+  align-items: center; 
+  font-family: 'Roboto', sans-serif;
+  font-weight: 400;
+  font-size: 20px;
+  color: var(--text-color-placeholder);
+  z-index: 3;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chatInput {
+  position: absolute;
+  top: 10px; 
+  left: 25px;
+  right: 60px; 
+  height: 50px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-color-dark);
+  font-family: 'Roboto', sans-serif;
+  font-size: 20px;
+  padding: 0; 
+  z-index: 4;
+}
+
+
+.actionButton {
+  position: absolute;
+  bottom: 18px; 
+  z-index: 5; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-sizing: border-box;
+  height: 32px; 
+  border: none;
+  transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+
+.addButton,
+.sourcesButton {
+  width: 32px;
+  padding: 0;
+  background: var(--button-dark-bg);
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  border-radius: 16px;
+  color: var(--icon-color);
+}
+
+
+.addButton svg,
+.sourcesButton svg {
     width: 16px;
     height: 16px;
-    display: block;
-    fill: currentColor;
-  }
-  .sendButton:disabled {
-      border-color: var(--text-color-placeholder);
-      color: var(--text-color-placeholder);
-  }
-  .sendButton:not(:disabled):hover {
-      border-color: #000;
-      color: #000;
-      background: rgba(0, 0, 0, 0.05);
-  }
-  
+}
 
-  .inlineLoading {
-    position: absolute;
-    bottom: 25px; 
-    right: 70px;
-    z-index: 6;
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(0, 0, 0, 0.3);
-    border-top-color: var(--text-color-dark); 
-    border-radius: 500%;
-    animation: spin 1s linear infinite;
-  }
+.addButton { left: 25px; }
+.sourcesButton { left: 65px; }
 
-  @keyframes animateGradientFlow {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
+.reasoningButton {
+  left: 105px;
+  padding: 0 12px; 
+  gap: 8px;
+  background: var(--button-dark-bg);
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  border-radius: 33px; 
+  color: var(--icon-color);
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  line-height: 16px; 
+}
+.reasoningButton svg {
+    width: 10px;
+    height: 16px;
+    flex-shrink: 0;
+}
+.reasoningButton span {
+    height: 16px;
+    display: inline-block;
+}
 
+.sendButton {
+  width: 32px;
+  right: 25px;
+  padding: 0;
+  border: 2px solid var(--text-color-dark);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text-color-dark);
+}
+.sendButton svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  fill: currentColor;
+}
 
-  .inputAreaContainer.loading .inputBgBlur {
-    background-size: 400% 100%; 
-    animation:
-      animateGradientFlow 4s linear infinite, 
-      scalePulse 2.5s ease-in-out infinite; 
-  
-  }
-
-  .loadingGradientAnimation {
-    background: linear-gradient(100deg,
-      var(--gradient-end) 0%,       
-      var(--gradient-middle) 25%, 
-      var(--gradient-start) 50%, 
-      var(--gradient-middle) 75%, 
-      var(--gradient-end) 100%    
-    );
-    background-size: 400% 10%;
-    animation: animateGradientFlow 4s linear infinite;
-  }
-  

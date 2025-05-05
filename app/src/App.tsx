@@ -49,12 +49,10 @@ function App() {
             if (!response.ok) throw new Error(`Failed to fetch chats list: ${response.statusText}`);
             const data: BackendChatsResponse = await response.json();
 
-            // --- ВИПРАВЛЕННЯ ТУТ ---
-            // Перетворюємо BackendChatsListItem на Chat, включаючи ВСІ поля
             const chatsFromBackend: Chat[] = (data.chats || []).map(c => ({
-                id: c.id,             // <--- Додаємо id
-                title: c.title,         // <--- Додаємо title
-                messages: [],           // Повідомлення ще не завантажені
+                id: c.id,            
+                title: c.title,      
+                messages: [], 
                 createdAt: new Date(c.createdAt), 
                 lastModified: new Date(c.lastModified),
                 model: c.model 
