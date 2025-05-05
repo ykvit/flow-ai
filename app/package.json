@@ -1,12 +1,13 @@
 {
-  "name": "my-ollama-chat",
+  "name": "flow-ai",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
+"dev": "vite",
+    "start": "vite",
+    "build": "tsc && vite build", 
+    "lint": "eslint .", 
     "preview": "vite preview"
   },
   "dependencies": {
