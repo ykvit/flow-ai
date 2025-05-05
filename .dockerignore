@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# Docker specific files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Node modules
+node_modules/
+*/node_modules/
+
+# Build artifacts & Frontend cache
+app/dist/
+app/coverage/
+app/.vite/
+backend/coverage/
+
+# Logs and temp files
+npm-debug.log*
+*.log
+.env
+.DS_Store
+
+# SQLite Database File - НЕ копіювати БД в образ!
+backend/data/
+*.db
+*.db-journal
+
+# IDE specific
+.vscode/
+.idea/
