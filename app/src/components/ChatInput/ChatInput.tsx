@@ -3,47 +3,73 @@ import styles from './ChatInput.module.css';
 import PlusIcon from '../../assets/plus-icon.svg?react';
 import BulbIcon from '../../assets/bulb-icon.svg?react';
 import SendIcon from '../../assets/Arrow.svg?react';
-import SurseButton from '../../assets/planet-icon.svg?react';
+import SurseButton from '../../assets/planet-icon.svg?react'; 
+import StopIcon from '../../assets/stop-icon.svg?react';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
-  isLoading: boolean;
+  isLoading: boolean; 
   inputRef: React.Ref<HTMLInputElement>;
+  onStopGenerating?: () => void;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, inputRef }) => {
+const ChatInput: React.FC<ChatInputProps> = ({
+  onSendMessage,
+  isLoading,
+  inputRef,
+  onStopGenerating,
+}) => {
   const [inputValue, setInputValue] = useState<string>('');
+  const hasText = inputValue.trim().length > 0;
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(event.target.value);
   };
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey && !isLoading) {
+    if (event.key === 'Enter' && !event.shiftKey && !isLoading && hasText) {
       event.preventDefault();
       sendMessage();
     }
   };
 
   const sendMessage = () => {
-    const messageToSend = inputValue.trim();
-    if (messageToSend) {
-      onSendMessage(messageToSend);
+    if (hasText && !isLoading) {
+      onSendMessage(inputValue.trim());
       setInputValue('');
     }
   };
 
+  const handleSendStopClick = () => {
+    if (isLoading && onStopGenerating) {
+      onStopGenerating();
+    } else if (hasText && !isLoading) {
+      sendMessage();
+    }
+  };
+
+  const getSendButtonStyle = () => {
+    if (isLoading) {
+      return styles.stopButton;
+    } else if (hasText) {
+      return styles.sendButtonActive;
+    } else {
+      return styles.sendButtonInactive;
+    }
+  };
+
   return (
+
     <div className={`${styles.inputAreaContainer} ${isLoading ? styles.loading : ''}`}>
       <div
         className={`${styles.inputBgBlur} ${isLoading ? styles.loadingGradientAnimation : ''}`}
       ></div>
       <div className={styles.inputBgWhite}></div>
-      
+
       {inputValue === '' && !isLoading && (
         <div className={styles.inputPlaceholderText}>Ask anything...</div>
       )}
-      
+
       <input
         ref={inputRef}
         type="text"
@@ -51,45 +77,42 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, inputRe
         value={inputValue}
         onChange={handleInputChange}
         onKeyPress={handleKeyPress}
-        disabled={isLoading}
         placeholder=""
       />
-      
-      {/* Buttons */}
-      <button 
-        className={`${styles.actionButton} ${styles.addButton}`} 
+
+
+      <button
+        className={`${styles.actionButton} ${styles.addButton}`}
         aria-label="Add file"
-        disabled={isLoading}
+        disabled={isLoading} 
       >
         <PlusIcon />
       </button>
-      
-      <button 
-        className={`${styles.actionButton} ${styles.sourcesButton}`} 
-        aria-label="Sources"
+      <button
+        className={`${styles.actionButton} ${styles.sourcesButton}`}
+        aria-label="Sources" 
         disabled={isLoading}
       >
         <SurseButton />
       </button>
-      
-      <button 
-        className={`${styles.actionButton} ${styles.reasoningButton}`} 
+      <button
+        className={`${styles.actionButton} ${styles.reasoningButton}`}
         aria-label="Reasoning"
-        disabled={isLoading}
+        disabled={isLoading} 
       >
         <BulbIcon /> <span>Reasoning</span>
       </button>
-      
+
+      {/* ---  Send/Stop --- */}
       <button
-        className={`${styles.actionButton} ${styles.sendButton}`}
-        onClick={sendMessage}
-        disabled={isLoading || !inputValue.trim()}
-        aria-label="Send message"
+        className={`${styles.actionButton} ${getSendButtonStyle()}`}
+        onClick={handleSendStopClick}
+        disabled={isLoading ? false : !hasText}
+        aria-label={isLoading ? "Stop generating" : "Send message"}
       >
-        <SendIcon />
+        {isLoading ? <StopIcon /> : <SendIcon />}
       </button>
-      
-      {isLoading && <div className={styles.inlineLoading}></div>}
+
     </div>
   );
 };

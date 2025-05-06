@@ -24,7 +24,7 @@ import SettingsIcon from './assets/settings-button.svg?react';
 
 const DEFAULT_FAVICON = '/logo.svg'; 
 const ACTIVE_CHAT_FAVICON = '/logo.svg'; 
-const DEFAULT_TITLE = 'Ollama Chat'; 
+const DEFAULT_TITLE = 'Flow-ai'; 
 
 function App() {
 
@@ -40,104 +40,85 @@ function App() {
     const [selectedModel, setSelectedModel] = useState<string>('phi3:mini'); 
     const [modelsLoading, setModelsLoading] = useState<boolean>(false);
     const [modelsError, setModelsError] = useState<string | null>(null);
+
+    const [abortController, setAbortController] = useState<AbortController | null>(null);
+    
     
     const inputRef = useRef<HTMLInputElement>(null);
+
     const loadInitialChats = async () => {
         console.log("Attempting to load initial chats...");
         try {
             const response = await fetch('/backend-api/chats');
             if (!response.ok) throw new Error(`Failed to fetch chats list: ${response.statusText}`);
             const data: BackendChatsResponse = await response.json();
-
             const chatsFromBackend: Chat[] = (data.chats || []).map(c => ({
-                id: c.id,            
-                title: c.title,      
-                messages: [], 
-                createdAt: new Date(c.createdAt), 
-                lastModified: new Date(c.lastModified),
-                model: c.model 
+                id: c.id, title: c.title, messages: [],
+                createdAt: new Date(c.createdAt), lastModified: new Date(c.lastModified), model: c.model
             }));
-
-
             const sortedChats = chatsFromBackend.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
             setSavedChats(sortedChats);
-            console.log("Loaded chats:", sortedChats.length);
             setActiveChatId(sortedChats.length > 0 ? sortedChats[0].id : null);
-
         } catch (error) {
             console.error("Error loading initial chats:", error);
-            setActiveChatId(null);
-            setSavedChats([]);
+            setActiveChatId(null); setSavedChats([]);
         }
     };
     
     const fetchModels = async () => {
         console.log("Attempting to fetch Ollama models...");
-        setModelsLoading(true);
-        setModelsError(null);
+        setModelsLoading(true); setModelsError(null);
         try {
-            const response = await fetch('/ollama-api/tags'); 
+            const response = await fetch('/ollama-api/tags');
             if (!response.ok) {
-                 let errorMsg = `HTTP error ${response.status}: ${response.statusText}`;
-                 try { const errBody = await response.json(); errorMsg += ` - ${errBody.error || JSON.stringify(errBody)}`;} catch (e) {/* ignore */}
-                 throw new Error(errorMsg);
+                let errorMsg = `HTTP error ${response.status}: ${response.statusText}`;
+                try { const errBody = await response.json(); errorMsg += ` - ${errBody.error || JSON.stringify(errBody)}`; } catch (e) { /* ignore */ }
+                throw new Error(errorMsg);
             }
             const data: OllamaTagsResponse = await response.json();
             const models = data.models || [];
             setAvailableModels(models);
-            console.log("Fetched Ollama models:", models.length);
-    
             const currentModelExists = models.some(m => m.name === selectedModel);
             if ((!currentModelExists || !selectedModel) && models.length > 0) {
-                console.log(`Selected model "${selectedModel}" not found/empty. Setting default: "${models[0].name}"`);
                 setSelectedModel(models[0].name);
             } else if (models.length === 0) {
-                console.warn("No local Ollama models found.");
                 setSelectedModel('');
             }
         } catch (error) {
             console.error("Error fetching Ollama models:", error);
             setModelsError(error instanceof Error ? error.message : "Unknown error");
-            setAvailableModels([]);
-            setSelectedModel('');
+            setAvailableModels([]); setSelectedModel('');
         } finally {
             setModelsLoading(false);
         }
     };
     
-    
     const loadMessagesForChat = async (chatId: string | null) => {
         if (!chatId) return;
         const chatState = savedChats.find(c => c.id === chatId);
-        if ((chatState?.messages ?? []).length > 0) {
-            console.log("Messages for chat", chatId, "already loaded.");
+        if (((chatState?.messages ?? []).length > 0) || (isChatLoading && activeChatId === chatId)) {
             return;
         }
-    
         console.log("Loading messages for chat:", chatId);
-        setIsChatLoading(true); 
+        setIsChatLoading(true);
         try {
             const response = await fetch(`/backend-api/chats/${chatId}`);
             if (!response.ok) {
-                 if (response.status === 404) {
-                      console.warn(`Chat ${chatId} not found on backend. Removing from list.`);
-                      setSavedChats(prev => prev.filter(c => c.id !== chatId));
-                      if (activeChatId === chatId) setActiveChatId(null);
-                 } else {
-                     throw new Error(`Failed to fetch messages for chat ${chatId}: ${response.statusText}`);
-                 }
-                 return;
+                if (response.status === 404) {
+                    setSavedChats(prev => prev.filter(c => c.id !== chatId));
+                    if (activeChatId === chatId) setActiveChatId(null);
+                } else {
+                    throw new Error(`Failed to fetch messages for chat ${chatId}: ${response.statusText}`);
+                }
+                return;
             }
             const data: BackendChatResponse = await response.json();
             setSavedChats(prevChats => prevChats.map(chat =>
                 chat.id === chatId ? {
-                    ...chat,
-                    messages: data.chat.messages || [],
-                    title: data.chat.title,
-                    createdAt: new Date(data.chat.createdAt),
-                    lastModified: new Date(data.chat.lastModified),
+                    ...chat, messages: data.chat.messages || [], title: data.chat.title,
+                    createdAt: new Date(data.chat.createdAt), lastModified: new Date(data.chat.lastModified),
                     model: data.chat.model
-                 } : chat
+                } : chat
             ));
         } catch (error) {
             console.error("Error loading messages:", error);
@@ -151,36 +132,28 @@ function App() {
         Promise.all([loadInitialChats(), fetchModels()])
             .catch(err => console.error("Error during initial data load:", err))
             .finally(() => setIsAppLoading(false));
-    }, []); 
-    
+    }, []);
+
     useEffect(() => {
-        loadMessagesForChat(activeChatId);
-    
+        if (activeChatId) {
+            loadMessagesForChat(activeChatId);
+        }
     }, [activeChatId]);
-    
+
     useEffect(() => {
-    
         setTimeout(() => inputRef.current?.focus(), 100);
-    }, [activeChatId]); 
+    }, [activeChatId]);
 
     useEffect(() => {
         const faviconElement = document.getElementById('favicon') as HTMLLinkElement | null;
-
         const activeChat = savedChats.find(chat => chat.id === activeChatId);
-    
         if (activeChat) {
-
-            document.title = activeChat.title || 'Chat'; 
-            if (faviconElement) {
-                faviconElement.href = ACTIVE_CHAT_FAVICON;
-            }
+            document.title = activeChat.title || 'Chat';
+            if (faviconElement) faviconElement.href = ACTIVE_CHAT_FAVICON;
         } else {
             document.title = DEFAULT_TITLE;
-            if (faviconElement) {
-                faviconElement.href = DEFAULT_FAVICON;
-            }
+            if (faviconElement) faviconElement.href = DEFAULT_FAVICON;
         }
-    
     }, [activeChatId, savedChats]);
     
     const openSettingsModal = () => setIsSettingsModalOpen(true);
@@ -293,48 +266,41 @@ function App() {
             setSavedChats(originalChats);
         }
     };
+
     
-    const handleSendMessage = async (userMessageText: string) => {
+     const handleSendMessage = async (userMessageText: string) => {
         const trimmedMessage = userMessageText.trim();
-        if (!trimmedMessage || isLoading) return; 
-    
+        if (!trimmedMessage || isLoading) return;
+
         let currentChatId = activeChatId;
         let isNewChat = false;
-    
+
         if (!currentChatId) {
-            console.log("No active chat, creating new one...");
             setIsChatLoading(true);
             const newChatId = await handleCreateNewChat();
             setIsChatLoading(false);
-            if (!newChatId) return; 
+            if (!newChatId) return;
             currentChatId = newChatId;
             isNewChat = true;
         }
-    
+
         if (!selectedModel) {
-            console.error("No model selected!");
             const noModelErrorMsg: AppMessage = { sender: 'assistant', text: 'Error: No AI model selected. Please select one in settings.' };
-            setSavedChats(prev => prev.map(c => c.id === currentChatId ? {...c, messages: [...(c.messages || []), noModelErrorMsg ]} : c)
-                .sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime()));
+            setSavedChats(prev => prev.map(c => c.id === currentChatId ? {...c, messages: [...(c.messages || []), noModelErrorMsg ]} : c).sort((a,b) => b.lastModified.getTime() - a.lastModified.getTime()));
             return;
         }
     
         const newUserMessage: AppMessage = { sender: 'user', text: trimmedMessage };
         const chatBeforeUpdate = savedChats.find(c => c.id === currentChatId);
         const previousMessages = chatBeforeUpdate?.messages || [];
-    
+
         const messagesForOllamaApi: OllamaMessage[] = [
             ...previousMessages.map(msg => ({
                 role: msg.sender === 'assistant' ? 'assistant' : 'user' as ('user' | 'assistant'),
                 content: msg.text
             })),
-            { role: 'user', content: newUserMessage.text } 
+            { role: 'user', content: newUserMessage.text }
         ];
-    
-        if (messagesForOllamaApi.length === 0) {
-             console.error("Logic Error: History for Ollama is unexpectedly empty even after adding user message.");
-             return;
-        }
     
         setIsLoading(true);
         setSavedChats(prevChats => prevChats
@@ -342,91 +308,90 @@ function App() {
                 chat.id === currentChatId
                     ? {
                         ...chat,
-                        title: isNewChat ? trimmedMessage.substring(0, 30) + (trimmedMessage.length > 30 ? '...' : '') : chat.title,
-                        messages: [...previousMessages, newUserMessage], 
-                        lastModified: new Date() 
+                        title: isNewChat && messagesForOllamaApi.length === 1 ?
+                               trimmedMessage.substring(0, 40) + (trimmedMessage.length > 40 ? '...' : '') : chat.title,
+                        messages: [...previousMessages, newUserMessage],
+                        lastModified: new Date()
                       }
                     : chat
             )
-             .sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime()) 
+            .sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime())
         );
+    
     
         let aiResponseText: string | null = null;
         let errorMessageText: string | null = null;
+        let wasAborted = false;
+
+        const controller = new AbortController();
+        setAbortController(controller);
     
         try {
-             console.log(`Sending to Ollama (Model: ${selectedModel}):`, messagesForOllamaApi.length, "messages"); 
-             const ollamaResponse = await fetch('/ollama-api/chat', {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({ model: selectedModel, messages: messagesForOllamaApi, stream: false }), 
-             });
-    
-             if (!ollamaResponse.ok) {
-                 let errorText = `Ollama API error! Status: ${ollamaResponse.status}`;
-                 try { const errorBody = await ollamaResponse.json(); errorText += ` - ${errorBody.error || JSON.stringify(errorBody)}`; } catch (e) { errorText += ` - ${ollamaResponse.statusText}`; }
-                 throw new Error(errorText);
-              }
-    
-             const ollamaData: OllamaChatResponse = await ollamaResponse.json();
-             if (ollamaData.message?.content) {
-                 aiResponseText = ollamaData.message.content.trim();
-                 if (aiResponseText) {
-                     console.log("Ollama Response OK:", aiResponseText.substring(0, 100) + "...");
-                 } else {
-                     console.warn("Ollama Response is null or empty.");
-                 }
-             } else {
-                 console.warn("Ollama response format unexpected:", ollamaData);
-                 throw new Error("assistant returned empty or invalid response format.");
-             }
+            const ollamaResponse = await fetch('/ollama-api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: selectedModel, messages: messagesForOllamaApi, stream: false }),
+                signal: controller.signal,
+            });
+
+            if (!ollamaResponse.ok) {
+                let errorText = `Ollama API error! Status: ${ollamaResponse.status}`;
+                try { const errorBody = await ollamaResponse.json(); errorText += ` - ${errorBody.error || JSON.stringify(errorBody)}`; } catch (e) { errorText += ` - ${ollamaResponse.statusText}`; }
+                throw new Error(errorText);
+            }
+
+            const ollamaData: OllamaChatResponse = await ollamaResponse.json();
+            if (ollamaData.message?.content) {
+                aiResponseText = ollamaData.message.content.trim();
+            } else {
+                throw new Error("Assistant returned empty or invalid response format.");
+            }
         } catch (error) {
-             console.error("Error calling Ollama /api/chat:", error);
-             errorMessageText = error instanceof Error ? error.message : "Unknown error contacting assistant";
+            if (error instanceof Error && error.name === 'AbortError') {
+                errorMessageText = "Generation stopped by user.";
+                wasAborted = true;
+            } else {
+                errorMessageText = error instanceof Error ? error.message : "Unknown error contacting assistant";
+            }
         } finally {
-             setIsLoading(false);
-             inputRef.current?.focus();
+            setIsLoading(false);
+            setAbortController(null);
+            inputRef.current?.focus();
         }
-    
-        const aiResponseMessage: AppMessage | null = aiResponseText ? { sender: 'assistant', text: aiResponseText } : null;
-        const errorResponseMessageForUI: AppMessage | null = errorMessageText ? { sender: 'assistant', text: `Error: ${errorMessageText}` } : null;
-        const messageToAddToUi = aiResponseMessage || errorResponseMessageForUI;
-    
-        if (messageToAddToUi) {
+
+        let finalAssistantMessage: AppMessage | null = null;
+        if (aiResponseText) {
+            finalAssistantMessage = { sender: 'assistant', text: aiResponseText };
+        } else if (errorMessageText) {
+            finalAssistantMessage = { sender: 'assistant', text: wasAborted ? errorMessageText : `Error: ${errorMessageText}` };
+        }
+
+        if (finalAssistantMessage) {
             setSavedChats(prevChats => prevChats.map(chat => {
                 if (chat.id === currentChatId) {
-                     const currentMessages = chat.messages || [];
-                     return { ...chat, messages: [...currentMessages, messageToAddToUi], lastModified: new Date() };
+                    return { ...chat, messages: [...(chat.messages || []), finalAssistantMessage], lastModified: new Date() };
                 }
                 return chat;
-            }).sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime())); 
+            }).sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime()));
         }
-        if (aiResponseMessage) {
+
+        if (aiResponseText && !wasAborted) {
             try {
-                 const backendPayload = {
-                     messages: [
-                         { role: 'user', content: newUserMessage.text },
-                         { role: 'assistant', content: aiResponseMessage.text }
-                     ]
-                 };
-    
-                 console.log("Attempting to save messages to backend for chat:", currentChatId);
-                 const backendResponse = await fetch(`/backend-api/chats/${currentChatId}/messages`, {
-                     method: 'POST',
-                     headers: { 'Content-Type': 'application/json' },
-                     body: JSON.stringify(backendPayload)
-                 });
-    
-                 if (!backendResponse.ok) {
-                     const errText = await backendResponse.text();
-                     throw new Error(`Backend error (${backendResponse.status}): ${errText}`);
-                 }
-                 console.log("Messages successfully saved to backend for chat:", currentChatId);
-    
-             } catch (error) {
+                const backendPayload = {
+                    messages: [ { role: 'user', content: newUserMessage.text }, { role: 'assistant', content: aiResponseText } ]
+                };
+                const backendResponse = await fetch(`/backend-api/chats/${currentChatId}/messages`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(backendPayload)
+                });
+                if (!backendResponse.ok) {
+                    const errText = await backendResponse.text();
+                    throw new Error(`Backend error (${backendResponse.status}): ${errText}`);
+                }
+            } catch (error) {
                 console.error("Error saving messages to backend:", error);
                 const saveErrorMessageForUi: AppMessage = {
-                   sender: 'assistant', 
+                   sender: 'assistant',
                    text: `⚠️ Error saving chat: ${error instanceof Error ? error.message : 'Unknown error'}`
                 };
                 setSavedChats(prevChats => prevChats.map(chat =>
@@ -434,7 +399,14 @@ function App() {
                 ).sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime()));
             }
         }
-    }; 
+    };
+
+    const handleStopGenerating = () => {
+        if (abortController) {
+            console.log("Attempting to stop generation via button...");
+            abortController.abort();
+        }
+    };
     
     const currentChatMessages = useMemo(() => {
         if (!activeChatId) return [];
@@ -484,6 +456,7 @@ function App() {
                 onSendMessage={handleSendMessage}
                 isLoading={isLoading || isChatLoading} 
                 inputRef={inputRef}
+                onStopGenerating={handleStopGenerating}
             />
             <button className={styles.bottomRightSettingsButton} onClick={openSettingsModal} aria-label="Open Settings">
                 <SettingsIcon />
