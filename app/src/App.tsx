@@ -55,7 +55,7 @@ function App() {
         toggleSidebar 
     } = useAppUI(activeChatId, savedChats);
 
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
 
     // Focus the input field when active chat changes
     useEffect(() => {

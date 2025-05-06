@@ -1,5 +1,4 @@
 import { useState } from 'react';
-// Переконайтесь, що Chat, Message, OllamaMessage, OllamaChatResponse імпортуються правильно
 import { Chat, Message, OllamaMessage, OllamaChatResponse } from '../types'; 
 
 export function useChat() {
@@ -12,8 +11,8 @@ export function useChat() {
         createNewChat: (selectedModel: string) => Promise<string | null>,
         selectedModel: string,
         savedChats: Chat[], // Змінено з any[] на Chat[]
-        setSavedChats: React.Dispatch<React.SetStateAction<Chat[]>>, // Змінено для відповідності Chat[]
-        inputRef: React.RefObject<HTMLInputElement | null> // <--- ОСЬ ЗМІНА
+        setSavedChats: React.Dispatch<React.SetStateAction<Chat[]>>, 
+        inputRef: React.RefObject<HTMLTextAreaElement | null>
     ) => {
         const trimmedMessage = userMessageText.trim();
         if (!trimmedMessage || isLoading) return;
@@ -22,25 +21,20 @@ export function useChat() {
         let isNewChat = false;
 
         if (!currentChatId) {
-            // setIsLoading(true); // Можливо, тут потрібен окремий isCreatingChatLoading
             const newChatId = await createNewChat(selectedModel);
-            // setIsLoading(false); 
             if (!newChatId) return;
             currentChatId = newChatId;
             isNewChat = true;
         }
         
-        // Перевірка, чи currentChatId не null після створення (малоймовірно, але для безпеки)
         if (!currentChatId) {
             console.error("Failed to set currentChatId even after attempting to create a new chat.");
-            // Можна показати помилку користувачу
             return; 
         }
 
 
         if (!selectedModel) {
             const noModelErrorMsg: Message = { sender: 'assistant', text: 'Error: No AI model selected. Please select one in settings.' };
-            // Важливо: переконайтесь, що currentChatId тут не null
             if (currentChatId) {
                 setSavedChats(prev => prev.map(c => c.id === currentChatId ? {...c, messages: [...(c.messages || []), noModelErrorMsg ]} : c).sort((a,b) => b.lastModified.getTime() - a.lastModified.getTime()));
             }
@@ -49,10 +43,10 @@ export function useChat() {
     
         const newUserMessage: Message = { sender: 'user', text: trimmedMessage };
         const chatBeforeUpdate = savedChats.find(c => c.id === currentChatId);
-        const previousMessages: Message[] = chatBeforeUpdate?.messages || []; // Типізуємо previousMessages
+        const previousMessages: Message[] = chatBeforeUpdate?.messages || []; 
 
         const messagesForOllamaApi: OllamaMessage[] = [
-            ...previousMessages.map((msg: Message) => ({ // Вказуємо тип для msg
+            ...previousMessages.map((msg: Message) => ({ 
                 role: msg.sender === 'assistant' ? 'assistant' : 'user' as ('user' | 'assistant'),
                 content: msg.text
             })),
@@ -60,7 +54,7 @@ export function useChat() {
         ];
     
         setIsLoading(true);
-        if (currentChatId) { // Додаткова перевірка
+        if (currentChatId) {
             setSavedChats(prevChats => prevChats
                 .map(chat =>
                     chat.id === currentChatId
@@ -69,7 +63,7 @@ export function useChat() {
                             title: isNewChat && messagesForOllamaApi.length === 1 ?
                                    trimmedMessage.substring(0, 40) + (trimmedMessage.length > 40 ? '...' : '') : chat.title,
                             messages: [...previousMessages, newUserMessage],
-                            lastModified: new Date() // Можна використовувати new Date().getTime() для простоти порівняння
+                            lastModified: new Date() 
                           }
                         : chat
                 )
@@ -118,8 +112,8 @@ export function useChat() {
             }
         } finally {
             setIsLoading(false);
-            setAbortController(null); // Завжди очищуємо контролер
-            inputRef.current?.focus(); // Тепер це безпечно, оскільки inputRef може бути null
+            setAbortController(null); 
+            inputRef.current?.focus();
         }
 
         let finalAssistantMessage: Message | null = null;
@@ -129,7 +123,7 @@ export function useChat() {
             finalAssistantMessage = { sender: 'assistant', text: wasAborted ? errorMessageText : `Error: ${errorMessageText}` };
         }
 
-        if (finalAssistantMessage && currentChatId) { // Додаткова перевірка
+        if (finalAssistantMessage && currentChatId) { 
             setSavedChats(prevChats => prevChats.map(chat => {
                 if (chat.id === currentChatId) {
                     return { ...chat, messages: [...(chat.messages || []), finalAssistantMessage!], lastModified: new Date() };
@@ -138,7 +132,7 @@ export function useChat() {
             }).sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()));
         }
 
-        if (aiResponseText && !wasAborted && currentChatId) { // Додаткова перевірка
+        if (aiResponseText && !wasAborted && currentChatId) { 
             try {
                 const backendPayload = {
                     messages: [ { role: 'user', content: newUserMessage.text }, { role: 'assistant', content: aiResponseText } ]
@@ -157,7 +151,6 @@ export function useChat() {
                    sender: 'assistant',
                    text: `⚠️ Error saving chat: ${error instanceof Error ? error.message : 'Unknown error'}`
                 };
-                // Переконайтесь, що currentChatId все ще валідний
                 if (currentChatId) {
                     setSavedChats(prevChats => prevChats.map(chat =>
                        chat.id === currentChatId ? {...chat, messages: [...(chat.messages || []), saveErrorMessageForUi ]} : chat
