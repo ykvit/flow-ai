@@ -1,16 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import styles from './App.module.css';
-
-import {
-    Message as AppMessage, 
-    OllamaTagModel, 
-    Chat,            
-    BackendChatResponse,  
-    BackendChatsResponse, 
-    OllamaMessage, 
-    OllamaChatResponse,
-    OllamaTagsResponse
-} from './types';
 
 import Sidebar from './components/Sidebar/Sidebar';
 import Header from './components/Header/Header';
@@ -21,112 +10,59 @@ import SettingsModal from './components/SettingsModal/SettingsModal';
 
 import SettingsIcon from './assets/settings-button.svg?react';
 
-
-const DEFAULT_FAVICON = '/logo.svg'; 
-const ACTIVE_CHAT_FAVICON = '/logo.svg'; 
-const DEFAULT_TITLE = 'Flow-ai'; 
+// Import custom hooks
+import { useChats } from './hooks/useChats';
+import { useModels } from './hooks/useModels';
+import { useChat } from './hooks/useChat';
+import { useAppUI } from './hooks/useAppUI';
 
 function App() {
+    // Use our custom hooks
+    const { 
+        savedChats, 
+        setSavedChats,
+        activeChatId, 
+        setActiveChatId, 
+        isChatLoading, 
+        loadInitialChats, 
+        createNewChat, 
+        deleteChat, 
+        editChat 
+    } = useChats();
 
-    const [savedChats, setSavedChats] = useState<Chat[]>([]);
-    const [activeChatId, setActiveChatId] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [isChatLoading, setIsChatLoading] = useState<boolean>(false); 
-    const [isAppLoading, setIsAppLoading] = useState<boolean>(true); 
-    const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
-    
-    const [availableModels, setAvailableModels] = useState<OllamaTagModel[]>([]);
-    const [selectedModel, setSelectedModel] = useState<string>('phi3:mini'); 
-    const [modelsLoading, setModelsLoading] = useState<boolean>(false);
-    const [modelsError, setModelsError] = useState<string | null>(null);
+    const { 
+        availableModels, 
+        selectedModel, 
+        setSelectedModel, 
+        modelsLoading, 
+        modelsError, 
+        fetchModels 
+    } = useModels();
 
-    const [abortController, setAbortController] = useState<AbortController | null>(null);
-    
-    
+    const { 
+        isLoading, 
+        handleSendMessage: sendMessage, 
+        stopGenerating 
+    } = useChat();
+
+    const { 
+        isAppLoading, 
+        setIsAppLoading, 
+        isSidebarOpen, 
+        isSettingsModalOpen, 
+        openSettingsModal, 
+        closeSettingsModal, 
+        toggleSidebar 
+    } = useAppUI(activeChatId, savedChats);
+
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const loadInitialChats = async () => {
-        console.log("Attempting to load initial chats...");
-        try {
-            const response = await fetch('/backend-api/chats');
-            if (!response.ok) throw new Error(`Failed to fetch chats list: ${response.statusText}`);
-            const data: BackendChatsResponse = await response.json();
-            const chatsFromBackend: Chat[] = (data.chats || []).map(c => ({
-                id: c.id, title: c.title, messages: [],
-                createdAt: new Date(c.createdAt), lastModified: new Date(c.lastModified), model: c.model
-            }));
-            const sortedChats = chatsFromBackend.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
-            setSavedChats(sortedChats);
-            setActiveChatId(sortedChats.length > 0 ? sortedChats[0].id : null);
-        } catch (error) {
-            console.error("Error loading initial chats:", error);
-            setActiveChatId(null); setSavedChats([]);
-        }
-    };
-    
-    const fetchModels = async () => {
-        console.log("Attempting to fetch Ollama models...");
-        setModelsLoading(true); setModelsError(null);
-        try {
-            const response = await fetch('/ollama-api/tags');
-            if (!response.ok) {
-                let errorMsg = `HTTP error ${response.status}: ${response.statusText}`;
-                try { const errBody = await response.json(); errorMsg += ` - ${errBody.error || JSON.stringify(errBody)}`; } catch (e) { /* ignore */ }
-                throw new Error(errorMsg);
-            }
-            const data: OllamaTagsResponse = await response.json();
-            const models = data.models || [];
-            setAvailableModels(models);
-            const currentModelExists = models.some(m => m.name === selectedModel);
-            if ((!currentModelExists || !selectedModel) && models.length > 0) {
-                setSelectedModel(models[0].name);
-            } else if (models.length === 0) {
-                setSelectedModel('');
-            }
-        } catch (error) {
-            console.error("Error fetching Ollama models:", error);
-            setModelsError(error instanceof Error ? error.message : "Unknown error");
-            setAvailableModels([]); setSelectedModel('');
-        } finally {
-            setModelsLoading(false);
-        }
-    };
-    
-    const loadMessagesForChat = async (chatId: string | null) => {
-        if (!chatId) return;
-        const chatState = savedChats.find(c => c.id === chatId);
-        if (((chatState?.messages ?? []).length > 0) || (isChatLoading && activeChatId === chatId)) {
-            return;
-        }
-        console.log("Loading messages for chat:", chatId);
-        setIsChatLoading(true);
-        try {
-            const response = await fetch(`/backend-api/chats/${chatId}`);
-            if (!response.ok) {
-                if (response.status === 404) {
-                    setSavedChats(prev => prev.filter(c => c.id !== chatId));
-                    if (activeChatId === chatId) setActiveChatId(null);
-                } else {
-                    throw new Error(`Failed to fetch messages for chat ${chatId}: ${response.statusText}`);
-                }
-                return;
-            }
-            const data: BackendChatResponse = await response.json();
-            setSavedChats(prevChats => prevChats.map(chat =>
-                chat.id === chatId ? {
-                    ...chat, messages: data.chat.messages || [], title: data.chat.title,
-                    createdAt: new Date(data.chat.createdAt), lastModified: new Date(data.chat.lastModified),
-                    model: data.chat.model
-                } : chat
-            ));
-        } catch (error) {
-            console.error("Error loading messages:", error);
-        } finally {
-            setIsChatLoading(false);
-        }
-    };
-    
+    // Focus the input field when active chat changes
+    useEffect(() => {
+        setTimeout(() => inputRef.current?.focus(), 100);
+    }, [activeChatId]);
+
+    // Initial data loading
     useEffect(() => {
         setIsAppLoading(true);
         Promise.all([loadInitialChats(), fetchModels()])
@@ -134,333 +70,68 @@ function App() {
             .finally(() => setIsAppLoading(false));
     }, []);
 
-    useEffect(() => {
-        if (activeChatId) {
-            loadMessagesForChat(activeChatId);
-        }
-    }, [activeChatId]);
-
-    useEffect(() => {
-        setTimeout(() => inputRef.current?.focus(), 100);
-    }, [activeChatId]);
-
-    useEffect(() => {
-        const faviconElement = document.getElementById('favicon') as HTMLLinkElement | null;
-        const activeChat = savedChats.find(chat => chat.id === activeChatId);
-        if (activeChat) {
-            document.title = activeChat.title || 'Chat';
-            if (faviconElement) faviconElement.href = ACTIVE_CHAT_FAVICON;
-        } else {
-            document.title = DEFAULT_TITLE;
-            if (faviconElement) faviconElement.href = DEFAULT_FAVICON;
-        }
-    }, [activeChatId, savedChats]);
-    
-    const openSettingsModal = () => setIsSettingsModalOpen(true);
-    const closeSettingsModal = () => setIsSettingsModalOpen(false);
-    const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-    
-    const handleCreateNewChat = async (): Promise<string | null> => {
-        console.log("handleCreateNewChat called");
-        try {
-            const response = await fetch('/backend-api/chats', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: "New Chat", model: selectedModel || "unknown" }) 
-            });
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`Failed to create new chat on backend: ${response.status} ${errText}`);
-            }
-            const data: BackendChatResponse = await response.json();
-            const newChat: Chat = {
-                id: data.chat.id,
-                title: data.chat.title,
-                messages: [],
-                createdAt: new Date(data.chat.createdAt),
-                lastModified: new Date(data.chat.lastModified),
-                model: data.chat.model
-            };
-            setSavedChats(prevChats => [newChat, ...prevChats].sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime()));
-            setActiveChatId(newChat.id); 
-            console.log("New chat created and set active:", newChat.id);
-            return newChat.id;
-        } catch (error) {
-            console.error("Error creating new chat:", error);
-            alert(`Error: Could not create a new chat. ${error instanceof Error ? error.message : ''}`);
-            return null;
-        }
-    };
-    
-    const handleDeleteChat = async (chatIdToDelete: string) => {
-        if (!window.confirm("Are you sure you want to delete this chat history? This action cannot be undone.")) return;
-    
-        const originalChats = [...savedChats];
-        const originalActiveId = activeChatId;
-    
-        const remainingChats = savedChats.filter(chat => chat.id !== chatIdToDelete);
-        const sortedRemaining = remainingChats.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
-        setSavedChats(sortedRemaining);
-    
-        if (activeChatId === chatIdToDelete) {
-            setActiveChatId(sortedRemaining.length > 0 ? sortedRemaining[0].id : null);
-        }
-    
-    
-        try {
-            const response = await fetch(`/backend-api/chats/${chatIdToDelete}`, { method: 'DELETE' });
-    
-            if (!response.ok && response.status !== 404) {
-                 throw new Error(`Failed to delete chat (status: ${response.status})`);
-            }
-            console.log(`Chat ${chatIdToDelete} deleted successfully (or was already gone).`);
-        } catch (error) {
-            console.error("Error deleting chat:", error);
-            alert(`Error deleting chat: ${error instanceof Error ? error.message : ''}`);
-    
-            setSavedChats(originalChats);
-            setActiveChatId(originalActiveId);
-        }
-    };
-    
-    const handleEditChat = async (chatIdToEdit: string) => {
-        console.log("Attempting to edit chat:", chatIdToEdit);
-        const currentChat = savedChats.find(chat => chat.id === chatIdToEdit);
-        const currentTitle = currentChat ? currentChat.title : "this chat";
-    
-        const newTitle = prompt(`Enter new title for "${currentTitle}":`, currentChat?.title || "");
-    
-        if (newTitle === null || newTitle.trim() === "") {
-            console.log("Edit cancelled or new title empty.");
-            return;
-        }
-        const trimmedNewTitle = newTitle.trim();
-    
-        const originalChats = [...savedChats];
-    
-        setSavedChats(prevChats =>
-            prevChats.map(chat =>
-                chat.id === chatIdToEdit
-                    ? { ...chat, title: trimmedNewTitle, lastModified: new Date() } 
-                    : chat
-            ).sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime()) 
+    // Wrapper for sending a message (simplifies the parameter list)
+    const handleSendMessage = (userMessageText: string) => {
+        return sendMessage(
+            userMessageText,
+            activeChatId,
+            createNewChat,
+            selectedModel,
+            savedChats,
+            setSavedChats,
+            inputRef
         );
-    
-        try {
-            console.log(`Sending PUT request to /backend-api/chats/${chatIdToEdit} with title: ${trimmedNewTitle}`);
-            const response = await fetch(`/backend-api/chats/${chatIdToEdit}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: trimmedNewTitle })
-            });
-    
-            if (!response.ok) {
-                let errorText = `Failed to update chat title (status: ${response.status})`;
-                try { const errBody = await response.json(); errorText += ` - ${errBody.error || JSON.stringify(errBody)}`; } catch (e) { errorText += ` - ${response.statusText}`; }
-                throw new Error(errorText);
-            }
-            console.log(`Chat ${chatIdToEdit} title updated successfully on backend.`);
-        } catch (error) {
-            console.error("Error updating chat title:", error);
-            alert(`Error updating chat title: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            setSavedChats(originalChats);
-        }
     };
 
-    
-     const handleSendMessage = async (userMessageText: string) => {
-        const trimmedMessage = userMessageText.trim();
-        if (!trimmedMessage || isLoading) return;
-
-        let currentChatId = activeChatId;
-        let isNewChat = false;
-
-        if (!currentChatId) {
-            setIsChatLoading(true);
-            const newChatId = await handleCreateNewChat();
-            setIsChatLoading(false);
-            if (!newChatId) return;
-            currentChatId = newChatId;
-            isNewChat = true;
-        }
-
-        if (!selectedModel) {
-            const noModelErrorMsg: AppMessage = { sender: 'assistant', text: 'Error: No AI model selected. Please select one in settings.' };
-            setSavedChats(prev => prev.map(c => c.id === currentChatId ? {...c, messages: [...(c.messages || []), noModelErrorMsg ]} : c).sort((a,b) => b.lastModified.getTime() - a.lastModified.getTime()));
-            return;
-        }
-    
-        const newUserMessage: AppMessage = { sender: 'user', text: trimmedMessage };
-        const chatBeforeUpdate = savedChats.find(c => c.id === currentChatId);
-        const previousMessages = chatBeforeUpdate?.messages || [];
-
-        const messagesForOllamaApi: OllamaMessage[] = [
-            ...previousMessages.map(msg => ({
-                role: msg.sender === 'assistant' ? 'assistant' : 'user' as ('user' | 'assistant'),
-                content: msg.text
-            })),
-            { role: 'user', content: newUserMessage.text }
-        ];
-    
-        setIsLoading(true);
-        setSavedChats(prevChats => prevChats
-            .map(chat =>
-                chat.id === currentChatId
-                    ? {
-                        ...chat,
-                        title: isNewChat && messagesForOllamaApi.length === 1 ?
-                               trimmedMessage.substring(0, 40) + (trimmedMessage.length > 40 ? '...' : '') : chat.title,
-                        messages: [...previousMessages, newUserMessage],
-                        lastModified: new Date()
-                      }
-                    : chat
-            )
-            .sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime())
-        );
-    
-    
-        let aiResponseText: string | null = null;
-        let errorMessageText: string | null = null;
-        let wasAborted = false;
-
-        const controller = new AbortController();
-        setAbortController(controller);
-    
-        try {
-            const ollamaResponse = await fetch('/ollama-api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ model: selectedModel, messages: messagesForOllamaApi, stream: false }),
-                signal: controller.signal,
-            });
-
-            if (!ollamaResponse.ok) {
-                let errorText = `Ollama API error! Status: ${ollamaResponse.status}`;
-                try { const errorBody = await ollamaResponse.json(); errorText += ` - ${errorBody.error || JSON.stringify(errorBody)}`; } catch (e) { errorText += ` - ${ollamaResponse.statusText}`; }
-                throw new Error(errorText);
-            }
-
-            const ollamaData: OllamaChatResponse = await ollamaResponse.json();
-            if (ollamaData.message?.content) {
-                aiResponseText = ollamaData.message.content.trim();
-            } else {
-                throw new Error("Assistant returned empty or invalid response format.");
-            }
-        } catch (error) {
-            if (error instanceof Error && error.name === 'AbortError') {
-                errorMessageText = "Generation stopped by user.";
-                wasAborted = true;
-            } else {
-                errorMessageText = error instanceof Error ? error.message : "Unknown error contacting assistant";
-            }
-        } finally {
-            setIsLoading(false);
-            setAbortController(null);
-            inputRef.current?.focus();
-        }
-
-        let finalAssistantMessage: AppMessage | null = null;
-        if (aiResponseText) {
-            finalAssistantMessage = { sender: 'assistant', text: aiResponseText };
-        } else if (errorMessageText) {
-            finalAssistantMessage = { sender: 'assistant', text: wasAborted ? errorMessageText : `Error: ${errorMessageText}` };
-        }
-
-        if (finalAssistantMessage) {
-            setSavedChats(prevChats => prevChats.map(chat => {
-                if (chat.id === currentChatId) {
-                    return { ...chat, messages: [...(chat.messages || []), finalAssistantMessage], lastModified: new Date() };
-                }
-                return chat;
-            }).sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime()));
-        }
-
-        if (aiResponseText && !wasAborted) {
-            try {
-                const backendPayload = {
-                    messages: [ { role: 'user', content: newUserMessage.text }, { role: 'assistant', content: aiResponseText } ]
-                };
-                const backendResponse = await fetch(`/backend-api/chats/${currentChatId}/messages`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(backendPayload)
-                });
-                if (!backendResponse.ok) {
-                    const errText = await backendResponse.text();
-                    throw new Error(`Backend error (${backendResponse.status}): ${errText}`);
-                }
-            } catch (error) {
-                console.error("Error saving messages to backend:", error);
-                const saveErrorMessageForUi: AppMessage = {
-                   sender: 'assistant',
-                   text: `⚠️ Error saving chat: ${error instanceof Error ? error.message : 'Unknown error'}`
-                };
-                setSavedChats(prevChats => prevChats.map(chat =>
-                   chat.id === currentChatId ? {...chat, messages: [...(chat.messages || []), saveErrorMessageForUi ]} : chat
-                ).sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime()));
-            }
-        }
-    };
-
-    const handleStopGenerating = () => {
-        if (abortController) {
-            console.log("Attempting to stop generation via button...");
-            abortController.abort();
-        }
-    };
-    
     const currentChatMessages = useMemo(() => {
         if (!activeChatId) return [];
         return savedChats.find(chat => chat.id === activeChatId)?.messages || [];
     }, [activeChatId, savedChats]);
-    
+
     if (isAppLoading) {
         return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '1.5em', color: '#ccc', background: '#1a1a1a' }}>Loading Application...</div>;
     }
-    
-    
 
-    
-    
-    
     return (
         <div className={`${styles.chatAppContainer} ${isSidebarOpen ? styles.sidebarOpen : ''}`}>
-    
             <Sidebar
                 isOpen={isSidebarOpen}
                 savedChats={savedChats.map(c => ({ id: c.id, title: c.title }))} 
                 activeChatId={activeChatId}
                 onSelectChat={setActiveChatId}
-                onDeleteChat={handleDeleteChat}
-                onEditChat={handleEditChat} 
+                onDeleteChat={deleteChat}
+                onEditChat={editChat} 
             />
-    
+
             <Header
                 onToggleSidebar={toggleSidebar}
                 isSidebarOpen={isSidebarOpen}
-                onCreateNewChat={handleCreateNewChat}
+                onCreateNewChat={() => createNewChat(selectedModel)}
             />
-    
+
             <div className={styles.mainContent}>
                 {(!activeChatId || (activeChatId && currentChatMessages.length === 0)) && !isChatLoading && !isLoading && <WelcomeMessage />}
                 {isChatLoading && currentChatMessages.length === 0 && (
                     <div className={styles.centralLoading}>Loading chat history...<div className={styles.spinner}></div></div>
                 )}
-                 {isLoading && currentChatMessages.length === 0 && !isChatLoading && (
-                      <div className={styles.centralLoading}>AI is thinking...<div className={styles.spinner}></div></div>
-                 )}
-    
+                {isLoading && currentChatMessages.length === 0 && !isChatLoading && (
+                    <div className={styles.centralLoading}>AI is thinking...<div className={styles.spinner}></div></div>
+                )}
+
                 {currentChatMessages.length > 0 && <MessageList messages={currentChatMessages} />}
-    
             </div>
+
             <ChatInput
                 onSendMessage={handleSendMessage}
                 isLoading={isLoading || isChatLoading} 
                 inputRef={inputRef}
-                onStopGenerating={handleStopGenerating}
+                onStopGenerating={stopGenerating}
             />
+
             <button className={styles.bottomRightSettingsButton} onClick={openSettingsModal} aria-label="Open Settings">
                 <SettingsIcon />
             </button>
+
             <SettingsModal
                 isOpen={isSettingsModalOpen}
                 onClose={closeSettingsModal}
