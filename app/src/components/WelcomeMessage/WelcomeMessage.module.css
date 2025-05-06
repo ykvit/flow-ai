@@ -1,38 +1,41 @@
 .welcomeText {
-    font-family: 'Roboto Serif', serif;
-    font-size: 3.5em;
-    font-weight: 500;
-    text-align: center;
-    line-height: 1.3;
-    background: linear-gradient(90deg, var(--gradient-start), var(--gradient-middle), var(--gradient-end));
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    max-width: 90%;
-  }
-  
-  .welcomeLine1,
-  .welcomeLine2 {
-    display: block;
-    width: 100%;
-  }
-  
-  .charmText {
-    font-family: 'Charm', cursive;
-    font-size: 1em;
-    font-weight: 700;
-    color: transparent;
-    background: inherit;
-    -webkit-background-clip: inherit;
-    background-clip: inherit;
-  }
-  
-  .emphasisText { 
-    font-family: 'Emphasis', 'Roboto Serif', serif;
-    font-style: italic;
-    font-weight: normal;
-    color: transparent;
-    background: inherit;
-    -webkit-background-clip: inherit;
-    background-clip: inherit;
-  }
+  font-family: 'Roboto Serif', serif;
+  font-size: 3.5em;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.3;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  max-width: 90%;
+}
+
+.welcomeLine1,
+.welcomeLine2 {
+  display: block;
+  width: 100%;
+}
+
+.welcomeLine1,
+.welcomeLine2,
+.charmText,
+.emphasisText {
+  background: linear-gradient(90deg, var(--gradient-start), var(--gradient-middle), var(--gradient-end));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.charmText {
+  font-family: 'Charm', cursive;
+  font-size: 1em;
+  font-weight: 700;
+}
+
+.emphasisText {
+  font-family: 'Emphasis', 'Roboto Serif', serif;
+  font-style: italic;
+  font-weight: normal;
+}
