@@ -107,7 +107,6 @@
 
 
 .actionButton {
-  /* ... */
   position: absolute;
   bottom: 18px;
   z-index: 5;
@@ -118,58 +117,51 @@
   box-sizing: border-box;
   height: 32px;
   border: none;
-  transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, color 0.2s ease; /* Додаємо color */
+  transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, color 0.2s ease;
 }
 
-.sendStopBase { /* Базові стилі для обох станів */
+.sendStopBase {
   width: 32px;
   right: 25px;
   padding: 0;
-  border-radius: 16px; /* Кругла */
-}
-.sendStopBase svg { /* Розмір іконки для обох */
-  width: 16px;
-  height: 16px;
-  display: block;
-  fill: currentColor; /* Колір іконки успадковується */
-}
-/* Стиль неактивної кнопки Send (тексту немає, не isLoading) */
-.sendButtonInactive {
-  composes: sendStopBase; /* Успадковуємо базові стилі */
-  border: 2px solid var(--text-color-placeholder); /* Сіра рамка */
-  background: transparent;
-  color: var(--text-color-placeholder); /* Сіра іконка */
-  opacity: 0.6; /* Трохи прозоріша */
-  cursor: default; /* Курсор за замовчуванням */
-}
-/* Стиль активної кнопки Send (текст є, не isLoading) */
-.sendButtonActive {
-  composes: sendStopBase;
-  border: none; /* Без рамки */
-  background: var(--text-color-dark); /* Чорний/темний фон */
-  color: #FFFFFF; /* Біла іконка */
-}
-.sendButtonActive:hover {
-  background: #000000; /* Трохи темніший при наведенні */
-}
-/* Стиль кнопки Stop (isLoading = true) */
-.stopButton {
-  composes: sendStopBase;
-  border: 2px solid #FF6B6B; /* Червона рамка */
-  background: rgba(255, 107, 107, 0.1); /* Легкий червоний фон */
-  color: #FF6B6B; /* Червона іконка */
-}
-.stopButton:hover {
-  background: rgba(255, 107, 107, 0.2);
-  border-color: #FF4D4D;
-  color: #FF4D4D;
+  border-radius: 16px;
 }
 
-/* Стиль для заблокованого стану будь-якої actionButton */
-.actionButton:disabled {
-opacity: 0.5;
-cursor: not-allowed;
-/* Специфічні стилі для заблокованих кнопок, якщо потрібно */
+.sendButtonInactive {
+  width: 32px;
+  right: 25px;
+  padding: 0;
+  border-radius: 16px;
+  border: 2px solid #000000 !important; 
+  background-color: white;
+  color: #000000 !important; 
+  cursor: default;
+  opacity: 1 !important; 
+}
+
+.sendButtonActive {
+  width: 32px;
+  right: 25px;
+  padding: 0;
+  border-radius: 16px;
+  border: none;
+  background-color: black;
+  color: white;
+}
+
+
+.stopButton {
+  width: 32px;
+  right: 25px;
+  padding: 0;
+
+  background: #000000;
+  border: 2px solid #000000;
+  border-radius: 16px;
+
+
+  color: white;
+  transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, color 0.2s ease;
 }
 
 
