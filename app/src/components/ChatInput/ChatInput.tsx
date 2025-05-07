@@ -11,6 +11,7 @@ interface ChatInputProps {
   isLoading: boolean;
   inputRef: React.Ref<HTMLTextAreaElement>;
   onStopGenerating?: () => void;
+  isSidebarOpen: boolean; 
 }
 
 const TEXTAREA_BASE_BORDER_BOX_HEIGHT_ONE_LINE = 50; 
@@ -23,6 +24,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isLoading,
   inputRef, 
   onStopGenerating,
+  isSidebarOpen,
 }) => {
   const [inputValue, setInputValue] = useState<string>('');
   const hasText = inputValue.trim().length > 0;
@@ -105,7 +107,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <div ref={inputAreaContainerRef} className={`${styles.inputAreaContainer} ${isLoading ? styles.loading : ''}`}>
+<div ref={inputAreaContainerRef} className={` ${styles.inputAreaContainer}  ${isLoading ? styles.loading : ''}  ${isSidebarOpen ? styles.sidebarIsOpen : ''}  `}  >
       <div ref={inputBgBlurRef} className={`${styles.inputBgBlur} ${isLoading ? styles.loadingGradientAnimation : ''}`}></div>
       <div ref={inputBgWhiteRef} className={styles.inputBgWhite}></div>
 

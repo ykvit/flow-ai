@@ -27,7 +27,7 @@ function App() {
         loadInitialChats, 
         createNewChat, 
         deleteChat, 
-        editChat 
+        editChat
     } = useChats();
 
     const { 
@@ -133,6 +133,7 @@ function App() {
                 isLoading={isLoading || isChatLoading} 
                 inputRef={inputRef}
                 onStopGenerating={stopGenerating}
+                isSidebarOpen={isSidebarOpen}
             />
 
             <button className={styles.bottomRightSettingsButton} onClick={openSettingsModal} aria-label="Open Settings">
