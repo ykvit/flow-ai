@@ -89,11 +89,19 @@ function App() {
         );
     };
 
+
+
     const currentChatMessages = useMemo(() => {
         if (!activeChatId) return [];
         return savedChats.find(chat => chat.id === activeChatId)?.messages || [];
     }, [activeChatId, savedChats]);
 
+    const showWelcomeMessage = useMemo(() => {
+
+        return (!activeChatId || (activeChatId && currentChatMessages.length === 0)) && !isChatLoading && !isLoading && !isAppLoading; 
+        // Додав !isAppLoading на всякий випадок
+    }, [activeChatId, currentChatMessages, isChatLoading, isLoading, isAppLoading]);
+    
     if (isAppLoading) {
         return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '1.5em', color: '#ccc', background: '#1a1a1a' }}>Loading Application...</div>;
     }
@@ -117,16 +125,17 @@ function App() {
             />
 
             <div className={styles.mainContent}>
-                {(!activeChatId || (activeChatId && currentChatMessages.length === 0)) && !isChatLoading && !isLoading && <WelcomeMessage />}
-                {isChatLoading && currentChatMessages.length === 0 && (
-                    <div className={styles.centralLoading}>Loading chat history...<div className={styles.spinner}></div></div>
-                )}
-                {isLoading && currentChatMessages.length === 0 && !isChatLoading && (
-                    <div className={styles.centralLoading}>AI is thinking...<div className={styles.spinner}></div></div>
-                )}
+            { showWelcomeMessage && <WelcomeMessage isSidebarOpen={isSidebarOpen} /> } 
 
-                {currentChatMessages.length > 0 && <MessageList messages={currentChatMessages} />}
-            </div>
+
+{!showWelcomeMessage && isChatLoading && currentChatMessages.length === 0 && (
+    <div className={styles.centralLoading}>Loading chat history...<div className={styles.spinner}></div></div>
+)}
+{!showWelcomeMessage && isLoading && currentChatMessages.length === 0 && !isChatLoading && (
+    <div className={styles.centralLoading}>AI is thinking...<div className={styles.spinner}></div></div>
+ )}
+{currentChatMessages.length > 0 && <MessageList messages={currentChatMessages} />}
+</div>
 
             <ChatInput
                 onSendMessage={handleSendMessage}

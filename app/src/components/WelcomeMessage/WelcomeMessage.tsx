@@ -15,6 +15,21 @@ const welcomePhrases = [
   { text: "How was your day today?", highlight: "your" }, 
 ];
 
+interface WelcomeMessageProps { 
+  isSidebarOpen: boolean;
+}
+
+const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isSidebarOpen }) => { 
+  const [currentPhrase, setCurrentPhrase] = useState<{ text: string; highlight: string } | null>(null);
+
+  useEffect(() => {
+    const phrase = getRandomElement(welcomePhrases);
+    if (phrase) {
+      setCurrentPhrase(phrase);
+    }
+  }, []);
+
+
 const getRandomElement = <T,>(arr: T[]): T | undefined => {
   if (!arr || arr.length === 0) {
     return undefined;
@@ -24,15 +39,6 @@ const getRandomElement = <T,>(arr: T[]): T | undefined => {
 };
 
 
-const WelcomeMessage: React.FC = () => {
-  const [currentPhrase, setCurrentPhrase] = useState<{ text: string; highlight: string } | null>(null);
-
-  useEffect(() => {
-    const phrase = getRandomElement(welcomePhrases);
-    if (phrase) {
-      setCurrentPhrase(phrase);
-    }
-  }, []);
 
   const applyHighlight = (line: string, wordToHighlight: string): React.ReactNode => {
     const lowerLine = line.toLowerCase();
@@ -66,9 +72,8 @@ const WelcomeMessage: React.FC = () => {
     let line1 = text;
     let line2 = ''; 
 
-    // --- Логіка розділення тексту ---
     const words = text.split(' ');
-    if (words.length > 4) { // Розділяємо, тільки якщо більше 4 слів
+    if (words.length > 4) { 
         const splitIndex = Math.ceil(words.length / 2);
         line1 = words.slice(0, splitIndex).join(' ');
         line2 = words.slice(splitIndex).join(' ');
@@ -85,12 +90,12 @@ const WelcomeMessage: React.FC = () => {
   }, [currentPhrase]);
 
   return (
-    <div className={styles.welcomeContainer}> 
-      <div className={styles.welcomeGreeting}>
-        {formattedTextElement} 
-      </div>
+    <div className={`${styles.welcomeContainer} ${isSidebarOpen ? styles.sidebarIsOpen : ''}`}> 
+    <div className={styles.welcomeGreeting}>
+      {formattedTextElement}
     </div>
-  );
-}; 
+  </div>
+);
+};
 
 export default WelcomeMessage;

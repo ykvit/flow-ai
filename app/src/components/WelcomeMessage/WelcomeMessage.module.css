@@ -9,24 +9,28 @@
   justify-content: center; 
   z-index: 1; 
   pointer-events: none; 
+  transition: left 0.3s ease-in-out, 
+              width 0.3s ease-in-out; 
+}
+.welcomeContainer.sidebarIsOpen {
+  left: 320px;
+  width: calc(100% - 320px); 
 }
 
 .welcomeGreeting {
-  /* ... (шрифт, позиціонування видалено, ширина, text-align) ... */
   font-family: 'Roboto Serif', serif; 
   font-style: normal;
   font-weight: 300;
   font-size: 50px;
-  line-height: 59px; /* Висота ОДНОГО рядка */
+  line-height: 59px; 
   width: auto; 
-  max-width: 80%; /* Або 600px, якщо потрібно обмежити ширину */
+  max-width: 80%; 
   text-align: center; 
 
   background: linear-gradient(90deg, 
   var(--gradient-start),   
-  var(--gradient-middle), /* Змінив зелений для кращої видимості */
+  var(--gradient-middle),
   var(--gradient-end),
-  /* Можна додати кольори ще раз для довшого градієнта при великому background-size */
   var(--gradient-middle),
   var(--gradient-start) 
 );
@@ -38,10 +42,10 @@
   animation: gradientSweep 50s linear infinite;
 }
 
-/* Новий клас для кожного рядка */
+
 .welcomeLine {
-  display: block; /* Робить span блоковим, змушуючи наступний починатися з нового рядка */
-  width: 100%;    /* Займає всю ширину батьківського .welcomeGreeting */
+  display: block;
+  width: 100%; 
 }
 
 .emphasisText { 
