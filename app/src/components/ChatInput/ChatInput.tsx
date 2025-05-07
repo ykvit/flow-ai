@@ -13,17 +13,15 @@ interface ChatInputProps {
   onStopGenerating?: () => void;
 }
 
-// Константи, які можна налаштувати (мають відповідати CSS)
-const TEXTAREA_BASE_BORDER_BOX_HEIGHT_ONE_LINE = 50; // Приблизна висота textarea для одного рядка (напр. 24px контент + 2*13px паддінг)
-const TEXTAREA_MAX_BORDER_BOX_HEIGHT = 226; // Приблизна макс. висота textarea (напр. 10 рядків * 24px + 2*13px паддінг = 266px, але CSS мав 226px)
-                                          // Узгодьте з CSS .chatInput max-height + vertical paddings
-const CONTAINER_VERTICAL_SPACING = 60; // Загальний вертикальний простір у контейнері поза textarea (10px зверху textarea + 50px знизу для кнопок)
-const INITIAL_CONTAINER_HEIGHT = TEXTAREA_BASE_BORDER_BOX_HEIGHT_ONE_LINE + CONTAINER_VERTICAL_SPACING; // e.g. 50 + 60 = 110px
+const TEXTAREA_BASE_BORDER_BOX_HEIGHT_ONE_LINE = 50; 
+const TEXTAREA_MAX_BORDER_BOX_HEIGHT = 226;
+const CONTAINER_VERTICAL_SPACING = 60;
+
 
 const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,
   isLoading,
-  inputRef, // Цей ref тепер для textarea, як і раніше
+  inputRef, 
   onStopGenerating,
 }) => {
   const [inputValue, setInputValue] = useState<string>('');
@@ -34,7 +32,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const inputBgWhiteRef = useRef<HTMLDivElement | null>(null);
   const inputBgBlurRef = useRef<HTMLDivElement | null>(null);
 
-  // Комбінований реф для зовнішнього та внутрішнього використання textarea
   useEffect(() => {
     if (typeof inputRef === 'function') {
       inputRef(textareaRefInternal.current);
@@ -48,10 +45,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
     if (textareaRefInternal.current && inputAreaContainerRef.current && inputBgWhiteRef.current && inputBgBlurRef.current) {
       const ta = textareaRefInternal.current;
       
-      ta.style.height = 'auto'; // Скидаємо для розрахунку scrollHeight
+      ta.style.height = 'auto';
       let newTextareaHeight = ta.scrollHeight;
 
-      // Обмежуємо висоту textarea
       if (newTextareaHeight < TEXTAREA_BASE_BORDER_BOX_HEIGHT_ONE_LINE) {
         newTextareaHeight = TEXTAREA_BASE_BORDER_BOX_HEIGHT_ONE_LINE;
       }
@@ -64,23 +60,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
       }
       ta.style.height = `${newTextareaHeight}px`;
 
-      // Розраховуємо нову висоту контейнера
       const newContainerHeight = newTextareaHeight + CONTAINER_VERTICAL_SPACING;
 
       inputAreaContainerRef.current.style.height = `${newContainerHeight}px`;
       inputBgWhiteRef.current.style.height = `${newContainerHeight}px`;
       inputBgBlurRef.current.style.height = `${newContainerHeight}px`;
     }
-  }, []); // useCallback, оскільки залежностей немає (константи ззовні)
+  }, []); 
 
   useEffect(() => {
-    // Початкове налаштування розміру при монтуванні та при зміні inputValue
     adjustInputAreaLayout();
   }, [inputValue, adjustInputAreaLayout]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(event.target.value);
-    // adjustInputAreaLayout буде викликано через useEffect [inputValue]
   };
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -93,7 +86,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const sendMessage = () => {
     if (hasText && !isLoading) {
       onSendMessage(inputValue.trim());
-      setInputValue(''); // Це викличе useEffect -> adjustInputAreaLayout
+      setInputValue(''); 
     }
   };
 
@@ -133,11 +126,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
       <button className={`${styles.actionButton} ${styles.addButton}`} aria-label="Add file" disabled={isLoading}>
         <PlusIcon />
       </button>
-      <button className={`${styles.actionButton} ${styles.sourcesButton}`} aria-label="Sources" disabled={isLoading}>
-        <SurseButton />
-      </button>
+
       <button className={`${styles.actionButton} ${styles.reasoningButton}`} aria-label="Reasoning" disabled={isLoading}>
         <BulbIcon /> <span>Reasoning</span>
+      </button>
+
+      <button className={`${styles.actionButton} ${styles.sourcesButton}`} aria-label="Sources" disabled={isLoading}>
+        <SurseButton />
       </button>
 
       <button
