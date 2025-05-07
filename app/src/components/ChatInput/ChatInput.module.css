@@ -43,7 +43,7 @@
     var(--gradient-start) 50%, 55%,
     var(--gradient-middle) 65%, 75%,
     var(--gradient-end) 85%, 95%,
-    var(--gradient-middle) 100%
+    var(--gradient-end) 100%
   );
   background-size: 600% 100%;
   animation: animateGradientFlow 10s linear infinite;
@@ -199,10 +199,14 @@
    color: var(--icon-color);
 }
 
-.addButton svg,
+.addButton svg{
+  width: 14px;
+  height: 14px;
+}
+
 .sourcesButton svg {
-  width: 16px;
-  height: 16px;
+  width: 19px;
+  height: 14px;
 }
 
 
@@ -217,8 +221,9 @@
   border-radius: 16px;
 }
 
-.reasoningButton {
 
+
+.reasoningButton {
   padding: 0 12px; 
   gap: 8px;
   background: var(--button-dark-bg);
