@@ -10,7 +10,7 @@ export function useChat() {
         activeChatId: string | null,
         createNewChat: (selectedModel: string) => Promise<string | null>,
         selectedModel: string,
-        savedChats: Chat[], // Змінено з any[] на Chat[]
+        savedChats: Chat[], 
         setSavedChats: React.Dispatch<React.SetStateAction<Chat[]>>, 
         inputRef: React.RefObject<HTMLTextAreaElement | null>
     ) => {

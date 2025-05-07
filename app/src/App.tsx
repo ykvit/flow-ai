@@ -56,6 +56,12 @@ function App() {
     } = useAppUI(activeChatId, savedChats);
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const activeChat = useMemo(() => {
+        if (!activeChatId) return null;
+        return savedChats.find(chat => chat.id === activeChatId);
+    }, [activeChatId, savedChats]);
+
+    const activeChatTitle = activeChat ? activeChat.title : null; 
 
     // Focus the input field when active chat changes
     useEffect(() => {
@@ -107,6 +113,7 @@ function App() {
                 onToggleSidebar={toggleSidebar}
                 isSidebarOpen={isSidebarOpen}
                 onCreateNewChat={() => createNewChat(selectedModel)}
+                chatTitle={activeChatTitle}
             />
 
             <div className={styles.mainContent}>
