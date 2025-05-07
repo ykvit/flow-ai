@@ -123,18 +123,35 @@ const ChatInput: React.FC<ChatInputProps> = ({
         rows={1}
       />
 
-      <button className={`${styles.actionButton} ${styles.addButton}`} aria-label="Add file" disabled={isLoading}>
-        <PlusIcon />
-      </button>
 
-      <button className={`${styles.actionButton} ${styles.reasoningButton}`} aria-label="Reasoning" disabled={isLoading}>
-        <BulbIcon /> <span>Reasoning</span>
-      </button>
+<div className={styles.leftActionButtonsContainer}>
+  <button 
+    className={`${styles.actionButton} ${styles.addButton}`} 
+    aria-label="Add file" 
+    disabled={isLoading}
+  >
+    <PlusIcon />
+  </button>
 
-      <button className={`${styles.actionButton} ${styles.sourcesButton}`} aria-label="Sources" disabled={isLoading}>
-        <SurseButton />
-      </button>
+  <button 
+    className={`${styles.actionButton} ${styles.reasoningButton}`} 
+    aria-label="Reasoning" 
+    disabled={isLoading}
+  >
+    <BulbIcon /> <span>Reasoning</span>
+  </button>
 
+
+  <button 
+    className={`${styles.actionButton} ${styles.sourcesButton}`} 
+    aria-label="Sources" 
+    disabled={isLoading}
+  >
+    <SurseButton />
+  </button>
+
+
+</div>
       <button
         className={`${styles.actionButton} ${getSendButtonStyle()}`}
         onClick={handleSendStopClick}

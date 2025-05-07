@@ -150,10 +150,17 @@
   border-radius: 3px;
 }
 
-.actionButton {
+.leftActionButtonsContainer {
   position: absolute;
-  bottom: 18px;
+  left: 25px;
+  bottom: 18px; 
   z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px; 
+}
+
+.actionButton {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -163,11 +170,8 @@
   border: none;
 }
 
-/* Button styles */
+
 .sendButtonInactive {
-  width: 32px;
-  right: 25px;
-  border-radius: 16px;
   border: 2px solid #000 !important; 
   background-color: white;
   color: #000 !important; 
@@ -176,29 +180,23 @@
 }
 
 .sendButtonActive {
-  width: 32px;
-  right: 25px;
-  border-radius: 16px;
   background-color: black;
   color: white;
 }
 
 .stopButton {
-  width: 32px;
-  right: 25px;
   background: #000;
-  border: 2px solid #000;
-  border-radius: 16px;
+  border: 2px solid #000; 
   color: white;
 }
 
 .addButton,
 .sourcesButton {
-  width: 32px;
-  background: var(--button-dark-bg);
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
-  border-radius: 16px;
-  color: var(--icon-color);
+   width: 32px;
+   background: var(--button-dark-bg);
+   box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+   border-radius: 16px;
+   color: var(--icon-color);
 }
 
 .addButton svg,
@@ -207,11 +205,20 @@
   height: 16px;
 }
 
-.addButton { left: 25px; }
-.sourcesButton { left: 65px; }
+
+.sendButtonInactive,
+.sendButtonActive,
+.stopButton {
+  position: absolute;
+  right: 25px;
+  bottom: 18px;    
+  z-index: 5; 
+  width: 32px;  
+  border-radius: 16px;
+}
 
 .reasoningButton {
-  left: 105px;
+
   padding: 0 12px; 
   gap: 8px;
   background: var(--button-dark-bg);
