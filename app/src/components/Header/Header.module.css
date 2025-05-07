@@ -1,0 +1,129 @@
+.sidebarToggleContainerFixed {
+  position: fixed; 
+  top: 20px;   
+  left: 16px;
+  z-index: 201;
+  width: 30px; 
+  height: 24px;
+  display: flex; 
+  align-items: center;
+  justify-content: center;
+}
+
+
+.sidebarToggleContainerFixed .headerButton {
+  display: flex; 
+  align-items: center;
+  justify-content: center;
+  width: 100%; 
+  height: 100%;
+  padding: 0; 
+}
+.sidebarToggleContainerFixed .headerButton svg {
+  width: 30px; 
+  height: 24px;
+}
+
+
+.mainHeaderContent {
+  display: flex;
+  justify-content: space-between;
+  position: fixed;
+  top: 0;
+  left: 70px; 
+  right: 0;
+  width: calc(100% - 70px);
+  height: 60px; 
+  padding: 0 20px 0 0; 
+  background: linear-gradient(
+    to bottom,
+    var(--header-bg-color, rgb(0, 0, 0)) 0%,
+    var(--header-bg-color, rgb(0, 0, 0)) 50%,
+    rgba(0, 0, 0, 0) 100%
+    );
+  color: var(--header-text-color, #e0e0e0);
+  z-index: 200; 
+  transition: left 0.3s ease-in-out, width 0.3s ease-in-out;
+  box-sizing: border-box;
+}
+.mainHeaderContent.sidebarOpenEffect {
+  left: calc(320px + 20px); 
+  width: calc(100% - (320px + 20px)); 
+}
+
+
+.leftControlsInHeader { 
+  display: flex;
+  align-items: center; 
+  gap: 12px; 
+  margin-top: 20px; 
+  height: 24px; 
+}
+
+
+.leftControlsInHeader .headerButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px; 
+  padding: 0;   
+}
+.leftControlsInHeader .headerButton svg {
+  width: 24px; 
+  height: 24px;
+}
+
+
+.headerButton { 
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+
+
+.chatTitleContainer {
+  flex-grow: 1;
+  text-align: center;
+  overflow: hidden;
+  margin: 0 10px; 
+  padding-top: 18px; 
+  display: block;
+  height: auto; 
+  line-height: normal; 
+}
+
+.chatTitleText {
+  font-size: 1em;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2; 
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block; 
+  max-width: 100%;
+}
+
+
+.temporaryButton,
+.modelIndicatorButton {
+  font-size: 0.9em;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+}
+
+.temporaryButton span,
+.modelIndicatorButton span {
+  line-height: 1;
+}
