@@ -8,21 +8,18 @@
   overflow: hidden;
 }
 
-  .mainContent {
-    flex: 1; 
-    overflow-y: auto; 
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: center;
-    align-items: center;
-    padding-top: 80px; 
-    padding-bottom: 160px;
-    padding-left: 20px;
-    padding-right: 20px;
-    position: relative;
-  }
-  
+.mainContent {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding-top: 80px;
+  padding-bottom: 160px;
+  padding-left: 20px;
+  padding-right: 20px;
+  position: relative;
+}
+
   .mainContent::-webkit-scrollbar {
     width: 6px;
   }
