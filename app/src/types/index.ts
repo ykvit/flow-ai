@@ -23,7 +23,10 @@ export interface Message {
       details: { /* ... */ };
   }
   
-  export interface OllamaMessage { /* ... */ }
+  export interface OllamaMessage {
+      role: string;
+      content: string;
+}
   export interface OllamaChatResponse {
       message: any;
 }

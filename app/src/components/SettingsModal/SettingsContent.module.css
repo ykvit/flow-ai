@@ -136,3 +136,154 @@
     font-size: 0.9em; 
     font-family: 'Roboto', sans-serif; 
   }
+/* SettingsContent.module.css (або SettingsCommon.module.css) */
+
+/* ... (існуючі стилі для .content, якщо є) ... */
+
+/* Секції */
+.sectionTitle {
+  font-family: 'Roboto', sans-serif; /* Змінив шрифт */
+  font-weight: 400;
+  font-size: 14px; /* Менший розмір, як на макеті */
+  color: rgba(255, 255, 255, 0.8); /* Світліший сірий */
+  margin-bottom: 15px;
+  text-transform: uppercase; /* Як на макеті */
+  letter-spacing: 0.5px;
+}
+
+/* Елемент налаштування (рядок) */
+.settingItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px; /* Зменшимо відстань */
+  min-height: 30px;
+  padding-left: 15px; /* Відступ для тексту відносно уявної лінії */
+  position: relative; /* Для позиціонування лінії */
+}
+.settingItem:last-child { margin-bottom: 0; }
+
+/* Вертикальна лінія для групи System (приклад) */
+.settingGroup > .settingItem::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: -8px; /* Починається трохи вище */
+    bottom: -8px; /* Закінчується трохи нижче */
+    width: 1px;
+    background-color: rgba(255, 255, 255, 0.3);
+}
+/* Ховаємо лінію для першого і останнього елемента */
+.settingGroup > .settingItem:first-child::before { top: 50%; } 
+.settingGroup > .settingItem:last-child::before { bottom: 50%; } 
+
+
+/* Лейбл */
+.settingLabel {
+  color: rgba(255, 255, 255, 0.9); /* Трохи яскравіший */
+  font-family: 'Roboto', sans-serif; /* Змінив шрифт */
+  font-size: 14px; /* Менший шрифт */
+  margin-right: 20px;
+  flex-shrink: 0; 
+}
+
+/* === Нові стилі для контролів === */
+
+/* Стилізований Select */
+.styledSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: transparent; /* Прозорий фон */
+  border: 1px solid rgba(255, 255, 255, 0.5); /* Біла рамка */
+  border-radius: 16px; /* Скруглення */
+  padding: 4px 25px 4px 12px; /* Налаштовуємо відступи */
+  color: rgba(255, 255, 255, 0.9);
+  min-width: 100px; /* Мінімальна ширина */
+  font-size: 13px; /* Розмір шрифту всередині */
+  font-family: 'Roboto', sans-serif;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+
+  /* Іконка стрілки (біла) */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23ffffff' %3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E%0A");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px; /* Розмір іконки */
+}
+.styledSelect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.styledSelect:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+/* Стилізована Textarea */
+.styledTextarea {
+  width: 100%; /* Займає всю ширину контейнера .settingGroup */
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 16px;
+  padding: 10px 15px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-family: 'Roboto', sans-serif;
+  resize: vertical; /* Дозволяємо змінювати висоту */
+  min-height: 60px; /* Мінімальна висота */
+  box-sizing: border-box; /* Щоб padding не збільшував розміри */
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.styledTextarea::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+.styledTextarea:focus {
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+/* Стилі для Toggle Switch */
+.toggleSwitch {
+  position: relative;
+  display: inline-block;
+  width: 40px; /* Ширина перемикача */
+  height: 22px; /* Висота перемикача */
+}
+.toggleSwitch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggleSlider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.2); /* Колір фону вимкненого стану */
+  border: 1px solid rgba(255, 255, 255, 0.5); /* Рамка */
+  transition: .3s;
+  border-radius: 22px; /* Повне скруглення */
+}
+.toggleSlider:before {
+  position: absolute;
+  content: "";
+  height: 16px; 
+  width: 16px;
+  left: 2px; 
+  bottom: 2px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+input:checked + .toggleSlider {
+  background-color: rgba(255, 255, 255, 0.8); 
+  border-color: rgba(255, 255, 255, 0.9);
+}
+input:checked + .toggleSlider:before {
+  transform: translateX(18px); 
+  background-color: #333;
+}
