@@ -1,4 +1,4 @@
-// src/components/SettingsModal/SettingsContent.tsx
+
 import React from 'react';
 import styles from './SettingsContent.module.css';
 import { SettingsCategory } from './SettingsModal';
@@ -7,8 +7,7 @@ import { SettingsCategory } from './SettingsModal';
 import GeneralSettings from './categories/GeneralSettings';
 import ModelsSettings from './categories/ModelsSettings';
 
-// Remove the local definition and import the shared OllamaTagModel interface
-import { OllamaTagModel } from '../../types'; 
+import { OllamaTagModel } from '../../types';
 
 
 interface SettingsContentProps {
@@ -16,6 +15,8 @@ interface SettingsContentProps {
   availableModels: OllamaTagModel[];
   selectedModel: string;
   onSelectModel: (modelName: string) => void;
+  selectedChatNamingModel: string; 
+  onSelectChatNamingModel: (modelName: string) => void; 
   modelsLoading: boolean;
   modelsError: string | null;
   onRefreshModels?: () => void;
@@ -26,6 +27,8 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
   availableModels,
   selectedModel,
   onSelectModel,
+  selectedChatNamingModel, 
+  onSelectChatNamingModel, 
   modelsLoading,
   modelsError,
   onRefreshModels,
@@ -39,6 +42,8 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
                   availableModels={availableModels}
                   currentModel={selectedModel}
                   onSelectModel={onSelectModel}
+                  selectedChatNamingModel={selectedChatNamingModel}
+                  onSelectChatNamingModel={onSelectChatNamingModel} 
                   isLoading={modelsLoading}
                   error={modelsError}
                   onRefresh={onRefreshModels}
@@ -51,7 +56,6 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
   return (
       <div className={styles.content}>
           {renderContent()}
-        
       </div>
   );
 };

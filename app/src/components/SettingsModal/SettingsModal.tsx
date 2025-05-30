@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Modal from '../Modal/Modal';
 import SettingsNav from './SettingsNav';
@@ -12,7 +13,7 @@ import AboutIcon from '../../assets/settings/settings-about.svg?react';
 
 export type SettingsCategory = 'general' | 'appearance' | 'models' | 'connections' | 'data' | 'about';
 
-import { OllamaTagModel } from '../../types'; 
+import { OllamaTagModel } from '../../types';
 
 const categories: { id: SettingsCategory; label: string; icon: React.FC<React.SVGProps<SVGSVGElement>> }[] = [
   { id: 'general', label: 'General', icon: GeneralIcon },
@@ -28,9 +29,11 @@ interface SettingsModalProps {
   availableModels: OllamaTagModel[];
   selectedModel: string;
   onSelectModel: (modelName: string) => void;
+  selectedChatNamingModel: string;
+  onSelectChatNamingModel: (modelName: string) => void; 
   modelsLoading: boolean;
   modelsError: string | null;
-  onRefreshModels?: () => void; 
+  onRefreshModels?: () => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -39,6 +42,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   availableModels,
   selectedModel,
   onSelectModel,
+  selectedChatNamingModel,  
+  onSelectChatNamingModel,  
   modelsLoading,
   modelsError,
   onRefreshModels,
@@ -58,6 +63,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           availableModels={availableModels}
           selectedModel={selectedModel}
           onSelectModel={onSelectModel}
+          selectedChatNamingModel={selectedChatNamingModel}   
+          onSelectChatNamingModel={onSelectChatNamingModel}
           modelsLoading={modelsLoading}
           modelsError={modelsError}
           onRefreshModels={onRefreshModels}

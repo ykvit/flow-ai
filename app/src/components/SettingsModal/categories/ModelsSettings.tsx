@@ -1,18 +1,20 @@
-
 import React from 'react';
-import styles from '../SettingsContent.module.css'; 
-import modelStyles from './ModelsSettings.module.css'; 
-import RefreshIcon from '../../../assets/settings/refresh-con.svg?react'; 
-import TrashIcon from '../../../assets/settings/delete-icon.svg?react'; 
+import styles from '../SettingsContent.module.css';
+import modelStyles from './ModelsSettings.module.css';
+import RefreshIcon from '../../../assets/settings/refresh-con.svg?react';
+import TrashIcon from '../../../assets/settings/delete-icon.svg?react';
 import CustomDropdown, { DropdownOption } from '../../CustomDropdown/CustomDropdown';
+import ChatNamingSettings from './ChatNamingSettings'; 
 
-import type { OllamaTagModel } from '../../../types'; 
+import type { OllamaTagModel } from '../../../types';
 
 
 interface ModelsSettingsProps {
   availableModels: OllamaTagModel[];
   currentModel: string;
   onSelectModel: (modelName: string) => void;
+  selectedChatNamingModel: string; 
+  onSelectChatNamingModel: (modelName: string) => void;
   isLoading: boolean;
   error: string | null;
   onRefresh?: () => void;
@@ -22,6 +24,8 @@ const ModelsSettings: React.FC<ModelsSettingsProps> = ({
   availableModels,
   currentModel,
   onSelectModel,
+  selectedChatNamingModel, 
+  onSelectChatNamingModel,
   isLoading,
   error,
   onRefresh,
@@ -29,12 +33,12 @@ const ModelsSettings: React.FC<ModelsSettingsProps> = ({
 
     const modelOptions: DropdownOption[] = availableModels.map(model => ({
         value: model.name,
-        label: model.name 
+        label: model.name
     }));
 
   const handleDeleteClick = (modelName: string) => {
       console.log("Attempting to delete model:", modelName);
-       if (window.confirm(`Are you sure you want to delete model "${modelName}"? This requires interacting with the Ollama API.`)) { 
+       if (window.confirm(`Are you sure you want to delete model "${modelName}"? This requires interacting with the Ollama API.`)) {
            alert(`Deletion for "${modelName}" not implemented yet.`);
        }
   };
@@ -49,12 +53,12 @@ const ModelsSettings: React.FC<ModelsSettingsProps> = ({
   }
 
   return (
-      <div className={modelStyles.modelsSettingsContainer}> 
-          <div className={styles.section}> 
+      <div className={modelStyles.modelsSettingsContainer}>
+          <div className={styles.section}>
               <h3 className={styles.sectionTitle}>Models for use</h3>
-              <div className={styles.settingsList}> 
+              <div className={styles.settingsList}>
                   <div className={styles.settingItem}>
-                    <label className={styles.settingLabel} htmlFor="default-model-dropdown"> 
+                    <label className={styles.settingLabel} htmlFor="default-model-dropdown">
                       Default Model
                     </label>
                       <div className={styles.settingControl}>
@@ -62,10 +66,10 @@ const ModelsSettings: React.FC<ModelsSettingsProps> = ({
                           {error && modelOptions.length === 0 && <span className={modelStyles.errorText}>Error loading</span>}
                           {(!isLoading || modelOptions.length > 0) && !error && (
                               <CustomDropdown
-                                id="default-model-dropdown" 
-                                options={modelOptions} 
-                                selectedValue={currentModel} 
-                                onChange={onSelectModel} 
+                                id="default-model-dropdown"
+                                options={modelOptions}
+                                selectedValue={currentModel}
+                                onChange={onSelectModel}
                                 placeholder="Select model..."
                                 disabled={modelOptions.length === 0 || isLoading}
                               />
@@ -73,17 +77,17 @@ const ModelsSettings: React.FC<ModelsSettingsProps> = ({
                         </div>
                     </div>
 
+                    
+                    <ChatNamingSettings
+                        availableModels={availableModels}
+                        isLoading={isLoading}
+                        selectedChatNamingModel={selectedChatNamingModel}
+                        onSelectChatNamingModel={onSelectChatNamingModel}
+                    />
+
                   <div className={styles.settingItem}>
                       <label className={styles.settingLabel}> Embedder Model</label>
                       <div className={styles.settingControl}>
-                           <select className={styles.styledSelect} disabled>
-                              <option>Not configured</option> 
-                           </select>
-                      </div>
-                  </div>
-                  <div className={styles.settingItem}>
-                      <label className={styles.settingLabel}>Support Model</label>
-                       <div className={styles.settingControl}>
                            <select className={styles.styledSelect} disabled>
                               <option>Not configured</option>
                            </select>
@@ -93,8 +97,8 @@ const ModelsSettings: React.FC<ModelsSettingsProps> = ({
           </div>
 
           <div className={styles.section}>
-              <div className={modelStyles.manageHeader}> 
-                  <h3 className={modelStyles.sectionTitleInHeader}>Manage Local Models</h3> 
+              <div className={modelStyles.manageHeader}>
+                  <h3 className={modelStyles.sectionTitleInHeader}>Manage Local Models</h3>
                   <div className={modelStyles.manageIcons}>
                       <button
                           className={modelStyles.iconButton}
@@ -117,7 +121,7 @@ const ModelsSettings: React.FC<ModelsSettingsProps> = ({
                 )}
 
               {availableModels.length > 0 && (
-                <div className={`${styles.settingsList} ${modelStyles.modelManageList}`}> 
+                <div className={`${styles.settingsList} ${modelStyles.modelManageList}`}>
                     {!isLoading && !error && availableModels.map(model => (
                         <div key={model.name} className={modelStyles.modelItem}>
                             <div className={modelStyles.modelInfo}>
@@ -131,7 +135,6 @@ const ModelsSettings: React.FC<ModelsSettingsProps> = ({
                                 aria-label={`Delete model ${model.name}`}
                                 title={`Delete model ${model.name}`}
                                 onClick={() => handleDeleteClick(model.name)}
-                                // disabled={true}
                             >
                                 <TrashIcon />
                             </button>
