@@ -1,161 +1,115 @@
 
-  .section {
-    margin-bottom: 35px; 
-  }
-  .section:last-child {
-      margin-bottom: 0;
-  }
-  
-  .sectionTitle {
-    font-family: 'Roboto', sans-serif; 
-    font-weight: 400;
-    font-size: 18px; 
-    color: rgba(255, 255, 255, 0.9);
-    margin-bottom: 18px;
-    padding-left: 10px; 
-  }
-  
- 
-  .settingsList {
-    position: relative;
-    padding-left: 25px;
-    margin-left: 5px; 
-  }
-  
-  .settingsList::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 5px; 
-    bottom: 5px; 
-    width: 2px;
-    background-color: #FFFFFF;
-    border-radius: 1px;
-  }
-  
-  .styledSelect {
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background-color: rgba(30, 30, 35, 0.7);
-    border: 1px solid #FFFFFF;
-    border-radius: 20px;
-    padding: 6px 35px 6px 15px; 
-    color: var(--text-color);
-    min-width: 150px; 
-    font-size: 14px;
-    font-family: 'Roboto', sans-serif;
-    outline: none;
-    cursor: pointer;
-    transition: border-color 0.2s ease, background-color 0.2s ease;
+.manageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  padding-left: 10px; 
+  margin-left: 5px;  
+}
 
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23ffffff' class='w-6 h-6'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E%0A");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 14px;
-  }
-  .styledSelect:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-  }
-  .styledSelect:hover:not(:disabled) {
-      border-color: rgba(255, 255, 255, 0.7);
-  }
-  
+.sectionTitleInHeader { 
+  font-family: 'Roboto', sans-serif;
+  font-weight: 400;
+  font-size: 20px; 
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 0; 
+}
 
-  .manageHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 18px; 
-  }
-  .manageHeader .sectionTitle {
-      margin-bottom: 0; 
-  }
-  .manageIcons {
-    display: flex;
-    gap: 10px;
-  }
-  
-  .iconButton {
-    background: none;
-    border: none;
-    padding: 3px;
-    color: rgba(255, 255, 255, 0.7);
-    cursor: pointer;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s, background-color 0.2s;
-  }
-  .iconButton:hover:not(:disabled) {
-    color: #FFFFFF;
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-  .iconButton:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-  }
-  .iconButton svg {
-      width: 18px;
-      height: 18px;
-      fill: currentColor;
-  }
-  
-  .modelManageList {
-      max-height: 150px;
-      overflow-y: auto;
-      padding-right: 10px; 
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
-  }
-  .modelManageList::-webkit-scrollbar { width: 6px; }
-  .modelManageList::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
-  .modelManageList::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
-  .modelManageList::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
-  
-  
-  .modelItem {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Роздільник */
-  }
-  .modelItem:last-child {
-      border-bottom: none;
-  }
-  
-  .modelInfo {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      margin-right: 15px;
-  }
-  .modelName {
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.9);
-  }
-  .modelDetails {
-      font-size: 11px;
-      color: rgba(255, 255, 255, 0.6);
-  }
-  
-  .modelItem .iconButton svg {
-      width: 16px; 
-      height: 16px;
-  }
-  .modelItem .iconButton:hover:not(:disabled) {
-      color: #ff8a8a; 
-      background-color: rgba(255, 80, 80, 0.1);
-  }
-  
-  .loadingText, .errorText, .noModelsText {
-      font-size: 14px;
-      padding: 10px 0;
-      text-align: left;
-  }
-  .loadingText { color: var(--text-color-placeholder); }
-  .errorText { color: #ffaaaa; }
-  .noModelsText { color: rgba(255, 255, 255, 0.6); }
+.manageIcons {
+  display: flex;
+  gap: 10px;
+}
+
+.iconButton {
+  background: none;
+  border: none;
+  padding: 5px; 
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.iconButton svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor; 
+}
+
+.modelManageList {
+  max-height: 180px; 
+  overflow-y: auto;
+  padding-right: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+}
+.modelManageList::-webkit-scrollbar { width: 6px; }
+.modelManageList::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
+.modelManageList::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
+.modelManageList::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
+
+.modelItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0; 
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.modelItem:last-child {
+  border-bottom: none;
+}
+
+.modelInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px; 
+  margin-right: 15px;
+  overflow: hidden; 
+}
+.modelName {
+  font-size: 14px; 
+  font-family: 'Roboto', sans-serif; 
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.modelDetails {
+  font-size: 11px; 
+  font-family: 'Roboto', sans-serif;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.modelItem .iconButton.deleteButton:hover:not(:disabled) { 
+  color: #ff8a8a; 
+  background-color: rgba(255, 80, 80, 0.1);
+}
+.modelItem .iconButton.deleteButton svg { 
+  width: 16px; 
+  height: 16px;
+}
+
+.loadingText, .errorText, .noModelsText {
+  font-family: 'Roboto Serif', serif; 
+  font-size: 15px;
+  padding: 15px 0; 
+  text-align: left;
+}
+.loadingText { color: rgba(255,255,255,0.6); } 
+.errorText { color: #ffaaaa; }
+.noModelsText { color: rgba(255, 255, 255, 0.6); }
+
+.centeredStatusText { 
+  text-align: center;
+  padding-left: 0; 
+  margin-left: 0;
+  line-height: 1.5;
+}
