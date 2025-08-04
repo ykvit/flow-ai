@@ -4,10 +4,8 @@ import styles from '../SettingsContent.module.css';
 const DataManagementSettings: React.FC = () => {
 
   const handleClearChats = () => {
-    //  need to add confirmation logic!!
     if (window.confirm("Are you sure you want to delete ALL chat history? This action cannot be undone.")) {
         console.log("Clearing all chats...");
-        // Here will be a call to the cleanup functionQ
     }
   };
 
