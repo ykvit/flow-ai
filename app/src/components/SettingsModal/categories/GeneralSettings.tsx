@@ -1,4 +1,3 @@
-// src/components/SettingsModal/categories/GeneralSettings.tsx
 import React, { useState, useEffect } from 'react';
 import styles from '../SettingsContent.module.css'; 
 import { DEFAULT_SYSTEM_PROMPT } from '../../../config/constants'; 

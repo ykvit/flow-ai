@@ -55,8 +55,7 @@ async function generateChatTitle(
     }
 }
 
-// Це має бути експорт функції useChat
-export function useChat() { // <--- ПРАВИЛЬНЕ ІМ'Я ФУНКЦІЇ
+export function useChat() {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [abortController, setAbortController] = useState<AbortController | null>(null);
     const { showNotification } = useNotifications();
@@ -68,7 +67,7 @@ export function useChat() { // <--- ПРАВИЛЬНЕ ІМ'Я ФУНКЦІЇ
         updateChatTitleForState: (chatId: string, newTitle: string) => Promise<void>,
         selectedModel: string,
         selectedChatNamingModel: string,
-        currentSavedChats: Chat[], // Chat тип потрібен тут
+        currentSavedChats: Chat[], 
         setSavedChatsCallback: React.Dispatch<React.SetStateAction<Chat[]>>,
         inputRef: React.RefObject<HTMLTextAreaElement | null>
     ) => {

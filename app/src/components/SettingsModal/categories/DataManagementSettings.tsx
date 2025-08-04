@@ -36,7 +36,7 @@ const DataManagementSettings: React.FC = () => {
                      Export Chats
                  </label>
                  <div className={styles.settingControl}>
-                    <button>Export All (JSON)</button> {/* add! */}
+                    <button>Export All (JSON)</button> 
                  </div>
             </div>
              <p style={{ fontSize: '0.8em', color: 'rgba(255,255,255,0.5)', marginTop: '5px' }}>
@@ -50,7 +50,7 @@ const DataManagementSettings: React.FC = () => {
                      Import Chats
                  </label>
                  <div className={styles.settingControl}>
-                    <button>Import from File...</button> {/* add!*/}
+                    <button>Import from File...</button> 
                  </div>
             </div>
              <p style={{ fontSize: '0.8em', color: 'rgba(255,255,255,0.5)', marginTop: '5px' }}>

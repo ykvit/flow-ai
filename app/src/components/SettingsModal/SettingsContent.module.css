@@ -13,7 +13,6 @@
 .content::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
 .content::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
 
-/* --- UNIFIED Section styles --- */
 .section {
   margin-bottom: 35px; 
 }
@@ -29,8 +28,6 @@
   margin-bottom: 22px;
   padding-left: 10px; 
 }
-
-/* --- UNIFIED Settings List with vertical line --- */
 .settingsList {
   position: relative;
   padding-left: 25px; 

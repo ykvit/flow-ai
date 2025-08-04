@@ -1,5 +1,5 @@
 services:
-  # Backend service (Node.js + Express + SQLite)
+  # Backend service 
   backend:
     build:
       context: ./backend
@@ -14,7 +14,7 @@ services:
     networks:
       - flow-network
 
-  # Frontend service (Nginx distributes compiled React/Vite)
+  # Frontend service 
   frontend:
     build:
       context: ./app
@@ -50,8 +50,6 @@ services:
 networks:
   flow-network:
 
-
-# Defining named volumes managed by Docker Compose
 volumes:
   sqlite_data:
   ollama:

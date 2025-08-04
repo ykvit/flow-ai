@@ -97,7 +97,7 @@ export function useNotifications() {
 
     console.log('Attempting to show notification:', title, options);
     
-    const tag = options?.chatId ? `flow-ai-chat-${options.chatId}` : `flow-ai-notification-${Date.now()}`; // Унікальний тег, якщо chatId немає
+    const tag = options?.chatId ? `flow-ai-chat-${options.chatId}` : `flow-ai-notification-${Date.now()}`; 
     const notificationOptions = { 
       body: options?.body, 
       icon: options?.icon, 

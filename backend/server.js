@@ -14,7 +14,6 @@ app.use(express.json());
 // GET /api/chats
 app.get('/api/chats', (req, res) => {
     console.log("Received GET /api/chats request");
-    // Додано model до SELECT
     const sql = "SELECT id, title, createdAt, lastModified, model FROM chats ORDER BY lastModified DESC";
     db.all(sql, [], (err, rows) => {
         if (err) {

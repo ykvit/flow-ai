@@ -1,4 +1,3 @@
-// src/App.tsx
 import { useRef, useEffect, useMemo, useState } from 'react';
 import styles from './App.module.css';
 
