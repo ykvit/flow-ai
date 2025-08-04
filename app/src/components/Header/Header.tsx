@@ -2,7 +2,7 @@ import React from 'react';
 import styles from './Header.module.css';
 import BoxIcon from '../../assets/side-field-button.svg?react'; 
 import PlusIcon from '../../assets/new-chat-icon.svg?react'; 
-// import TemporaryIcon from '../../assets/temporary-icon.svg?react';
+
 // import ModelIcon from '../../assets/model-a-icon.svg?react';
 
 interface HeaderProps {

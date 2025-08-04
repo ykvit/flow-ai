@@ -40,9 +40,9 @@ function createTables() {
         title TEXT NOT NULL,
         createdAt TEXT NOT NULL,
         lastModified TEXT NOT NULL,
-        model TEXT NOT NULL,           -- Зроблено NOT NULL, модель важлива
-        systemPrompt TEXT NULL,        -- Нове поле: Системний промпт
-        ollamaOptions TEXT NULL        -- Нове поле: Параметри Ollama (JSON рядок)
+        model TEXT NOT NULL,         
+        systemPrompt TEXT NULL,        
+        ollamaOptions TEXT NULL      
     );`;
 
     const createChatsIndex = `
@@ -53,10 +53,10 @@ function createTables() {
     CREATE TABLE IF NOT EXISTS messages (
         id TEXT PRIMARY KEY,
         chatId TEXT NOT NULL,
-        role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system', 'tool')), -- Оновлений CHECK constraint
+        role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system', 'tool')), 
         content TEXT NOT NULL,
         timestamp TEXT NOT NULL,
-        FOREIGN KEY (chatId) REFERENCES chats(id) ON DELETE CASCADE -- Забезпечує видалення повідомлень
+        FOREIGN KEY (chatId) REFERENCES chats(id) ON DELETE CASCADE 
     );`;
     // images TEXT NULL,
     // toolCalls TEXT NULL,

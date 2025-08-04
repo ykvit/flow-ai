@@ -1,79 +1,162 @@
-import React from 'react';
-import styles from '../SettingsContent.module.css';
+import React, { useState, useEffect } from 'react';
+import styles from '../SettingsContent.module.css'; 
+import { DEFAULT_SYSTEM_PROMPT } from '../../../config/constants'; 
+import { useNotifications } from '../../../hooks/useNotifications'; 
+import CustomDropdown from '../../CustomDropdown/CustomDropdown';
+import type { DropdownOption } from '../../CustomDropdown/CustomDropdown';
 
 const GeneralSettings: React.FC = () => {
+  const { 
+    isNotificationEnabled,  
+    notificationPermission,  
+    toggleNotificationsSetting 
+  } = useNotifications();
+
+
+  const [systemPrompt, setSystemPrompt] = useState(''); 
+  const [answerLanguage, setAnswerLanguage] = useState('auto'); 
+  const [interfaceLanguage, setInterfaceLanguage] = useState('en');
+  const [theme, setTheme] = useState('dark');
+
+  const interfaceLanguageOptions: DropdownOption[] = [
+    { value: 'en', label: 'English' },
+  ];
+
+  const answerLanguageOptions: DropdownOption[] = [
+    { value: 'auto', label: 'Auto' },
+    { value: 'en', label: 'English' },
+    { value: 'fr', label: 'French' },
+    { value: 'ua', label: 'Ukrainian' },
+    { value: 'es', label: 'Spanish' }
+  ];
+
+  const themeOptions: DropdownOption[] = [
+    { value: 'dark', label: 'Dark' },
+  ];
+
+  useEffect(() => {
+    const savedPrompt = localStorage.getItem('flowai_systemPrompt'); 
+    if (savedPrompt !== null) {
+      setSystemPrompt(savedPrompt); 
+    }
+
+
+    const savedAnswerLang = localStorage.getItem('flowai_answerLanguage');
+    if (savedAnswerLang) { 
+      setAnswerLanguage(savedAnswerLang);
+    }
+    
+    const savedInterfaceLang = localStorage.getItem('flowai_interfaceLanguage');
+    if (savedInterfaceLang) {
+      setInterfaceLanguage(savedInterfaceLang);
+    }
+
+    const savedTheme = localStorage.getItem('flowai_theme');
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+  }, []); 
+
+  const handlePromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newPrompt = event.target.value;
+    setSystemPrompt(newPrompt);
+    localStorage.setItem('flowai_systemPrompt', newPrompt); 
+  };
+
+  const handleAnswerLanguageChange = (value: string) => {
+    setAnswerLanguage(value);
+    localStorage.setItem('flowai_answerLanguage', value);
+  };
+
+  const handleInterfaceLanguageChange = (value: string) => {
+    setInterfaceLanguage(value);
+    localStorage.setItem('flowai_interfaceLanguage', value);
+  };
+
+  const handleThemeChange = (value: string) => {
+    setTheme(value);
+    localStorage.setItem('flowai_theme', value);
+  };
+
+  const handleNotificationToggleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const enable = event.target.checked;
+    toggleNotificationsSetting(enable); 
+  };
+
   return (
-    <div>
-      {/* Language & Startup Behavior Section */}
-      <div className={styles.settingSection}>
-        {/* Language */}
-        <div className={styles.settingItem}>
-          <label className={styles.settingLabel} htmlFor="language-select">
-            Language
-          </label>
-          <div className={styles.settingControl}>
-            <select id="language-select" defaultValue="en">
-              <option value="en">English</option>
-              <option value="uk">Українська</option>
-            </select>
+    <> 
+      <div className={styles.section}>
+        <h3 className={styles.sectionTitle}>System</h3>
+        <div className={styles.settingsList}>
+          <div className={styles.settingItem}>
+            <label className={styles.settingLabel} htmlFor="interface-language">Language</label>
+            <div className={styles.settingControl}>
+              <CustomDropdown
+                id="interface-language"
+                options={interfaceLanguageOptions}
+                selectedValue={interfaceLanguage}
+                onChange={handleInterfaceLanguageChange}
+              />
+            </div>
+          </div>
+          
+          <div className={styles.settingItem}>
+            <label className={styles.settingLabel} htmlFor="answer-language">Answer language</label>
+            <div className={styles.settingControl}>
+              <CustomDropdown
+                id="answer-language"
+                options={answerLanguageOptions}
+                selectedValue={answerLanguage}
+                onChange={handleAnswerLanguageChange}
+              />
+            </div>
+          </div>
+
+          <div className={styles.settingItem}>
+            <label className={styles.settingLabel} htmlFor="theme-select">Theme</label>
+            <div className={styles.settingControl}>
+              <CustomDropdown
+                id="theme-select"
+                options={themeOptions}
+                selectedValue={theme}
+                onChange={handleThemeChange}
+                disabled={true} 
+              />
+            </div>
+          </div>
+
+          <div className={styles.settingItem}>
+            <label className={styles.settingLabel} htmlFor="notifications-toggle">Notifications</label>
+            <div className={styles.settingControl}>
+              <label className={styles.toggleSwitch} htmlFor="notifications-toggle">
+                <input 
+                  type="checkbox" 
+                  id="notifications-toggle" 
+                  checked={isNotificationEnabled}
+                  onChange={handleNotificationToggleChange} 
+                  disabled={notificationPermission === 'denied'}
+                />
+                <span className={styles.toggleSlider}></span>
+              </label>
+            </div>
           </div>
         </div>
-        {/* Startup Behavior */}
-        <div className={styles.settingItem}>
-           <label className={styles.settingLabel} htmlFor="startup-behavior">
-             Startup Behavior
-           </label>
-           <div className={styles.settingControl}>
-             <select id="startup-behavior" defaultValue="last">
-               <option value="last">Open last active chat</option>
-               <option value="new">Always create new chat</option>
-             </select>
-           </div>
-         </div>
       </div>
 
-      {/* Default System Prompt Section */}
-      <div className={styles.settingSection}>
-         <label className={styles.settingLabel} htmlFor="system-prompt" style={{ marginBottom: '10px', display: 'block' }}>
-             Default System Prompt
-         </label>
-         <div className={`${styles.settingControl} ${styles.fullWidthTextarea}`}>
+      <div className={styles.section}>
+        <h3 className={styles.sectionTitle}>Default System Prompt</h3>
+        <div className={styles.settingsList}> 
              <textarea
                 id="system-prompt"
-                rows={3}
-                placeholder="e.g., You are a helpful and friendly assistant."
+                className={styles.styledTextarea} 
+                rows={5} 
+                placeholder={DEFAULT_SYSTEM_PROMPT} 
+                value={systemPrompt} 
+                onChange={handlePromptChange} 
              />
-         </div>
+        </div>
       </div>
-
-      {/* Notifications & Theme Section */}
-      <div className={styles.settingSection}>
-         {/* Notifications */}
-         <div className={styles.settingItem}>
-           <label className={styles.settingLabel} htmlFor="notifications">
-             Notifications
-           </label>
-           <div className={styles.settingControl}>
-             <label htmlFor="notifications" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-               <input type="checkbox" id="notifications" defaultChecked style={{ marginRight: '8px' }}/> Enable
-             </label>
-           </div>
-         </div>
-         {/* Theme */}
-         <div className={styles.settingItem}>
-           <label className={styles.settingLabel} htmlFor="theme-select">
-             Theme
-           </label>
-           <div className={styles.settingControl}>
-             <select id="theme-select" defaultValue="dark">
-               <option value="dark">Dark</option>
-               <option value="light">Light</option>
-             </select>
-           </div>
-         </div>
-      </div>
-
-    </div>
+    </>
   );
 };
 

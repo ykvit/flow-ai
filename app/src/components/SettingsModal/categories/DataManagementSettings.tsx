@@ -4,10 +4,8 @@ import styles from '../SettingsContent.module.css';
 const DataManagementSettings: React.FC = () => {
 
   const handleClearChats = () => {
-    //  need to add confirmation logic!!
     if (window.confirm("Are you sure you want to delete ALL chat history? This action cannot be undone.")) {
         console.log("Clearing all chats...");
-        // Here will be a call to the cleanup functionQ
     }
   };
 
@@ -38,7 +36,7 @@ const DataManagementSettings: React.FC = () => {
                      Export Chats
                  </label>
                  <div className={styles.settingControl}>
-                    <button>Export All (JSON)</button> {/* add! */}
+                    <button>Export All (JSON)</button> 
                  </div>
             </div>
              <p style={{ fontSize: '0.8em', color: 'rgba(255,255,255,0.5)', marginTop: '5px' }}>
@@ -52,7 +50,7 @@ const DataManagementSettings: React.FC = () => {
                      Import Chats
                  </label>
                  <div className={styles.settingControl}>
-                    <button>Import from File...</button> {/* add!*/}
+                    <button>Import from File...</button> 
                  </div>
             </div>
              <p style={{ fontSize: '0.8em', color: 'rgba(255,255,255,0.5)', marginTop: '5px' }}>
