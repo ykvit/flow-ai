@@ -1,18 +1,20 @@
 services:
-  # Backend service 
+  # Backend service
   backend:
     build:
-      context: ./backend
+      context: ./backend 
     container_name: flow_backend
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "8000:8000" 
     environment:
-      NODE_ENV: production
+      - REDIS_ADDR=redis:6379
     volumes:
-      - sqlite_data:/usr/src/app/data
+      - uploads:/app/uploads
     networks:
       - flow-network
+    depends_on:
+      - redis
 
   # Frontend service 
   frontend:
@@ -21,10 +23,22 @@ services:
     container_name: flow_frontend
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "3000:80"
     depends_on:
       - backend
       - ollama
+    networks:
+      - flow-network
+
+  # Redis service
+  redis:
+    image: redis/redis-stack:latest
+    container_name: flow_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
     networks:
       - flow-network
 
@@ -45,12 +59,12 @@ services:
             count: all
             capabilities: [gpu]
     restart: unless-stopped
-      
 
 networks:
   flow-network:
 
 volumes:
-  sqlite_data:
+  redis_data:
+  uploads:
   ollama:
     external: true
