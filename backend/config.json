@@ -1,0 +1,7 @@
+{
+  "redis_addr": "redis:6379",
+  "ollama_url": "http://ollama:11434",
+  "system_prompt": "You are a helpful assistant. Always respond in Markdown format.",
+  "main_model": "hf.co/unsloth/gemma-3-1b-it-GGUF:IQ4_NL",
+  "support_model": "hf.co/unsloth/gemma-3-1b-it-GGUF:IQ4_NL"
+}
