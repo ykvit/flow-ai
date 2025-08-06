@@ -33,11 +33,18 @@ func main() {
 
 	router := api.NewRouter(chatHandler)
 
+	// FIX: Server timeouts are adjusted for long-running connections (like SSE).
 	server := &http.Server{
-		Addr:         ":8000",
-		Handler:      router,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Addr:    ":8000",
+		Handler: router,
+		// ReadHeaderTimeout is a good practice to prevent slow-loris attacks.
+		ReadHeaderTimeout: 20 * time.Second,
+		// WriteTimeout is set to 0 (infinity) because SSE streams can be idle
+		// for a long time while the model is processing.
+		WriteTimeout: 0,
+		// IdleTimeout is the preferred way to manage keep-alive connections.
+		// A long timeout is set to keep the connection open for streaming.
+		IdleTimeout: 120 * time.Second, 
 	}
 
 	log.Println("Starting server on port 8000...")

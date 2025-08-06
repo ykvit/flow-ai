@@ -90,6 +90,27 @@ func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request
 	log.Println("Finished streaming response.")
 }
 
+// UpdateTitleRequest is the structure for the manual title update request.
+type UpdateTitleRequest struct {
+	Title string `json:"title"`
+}
+
+func (h *ChatHandler) UpdateChatTitle(w http.ResponseWriter, r *http.Request) {
+	chatID := chi.URLParam(r, "chatID")
+	var req UpdateTitleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	if err := h.service.UpdateChatTitle(r.Context(), chatID, req.Title); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not update chat title")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 func respondWithError(w http.ResponseWriter, code int, message string) { respondWithJSON(w, code, map[string]string{"error": message}) }
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	response, _ := json.Marshal(payload)

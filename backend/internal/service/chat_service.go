@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	// THE FIX IS HERE: Corrected the import path
 	"github.com/google/uuid"
 )
 
@@ -22,6 +23,15 @@ type ChatService struct {
 func NewChatService(repo repository.Repository, llm llm.LLMProvider) *ChatService {
 	return &ChatService{repo: repo, llm: llm}
 }
+
+func (s *ChatService) UpdateChatTitle(ctx context.Context, chatID, newTitle string) error {
+    if newTitle == "" {
+        return fmt.Errorf("title cannot be empty")
+    }
+	log.Printf("Manually updating title for chat %s to '%s'", chatID, newTitle)
+	return s.repo.UpdateChatTitle(ctx, chatID, newTitle)
+}
+
 
 func (s *ChatService) ListChats(ctx context.Context, userID string) ([]*model.Chat, error) {
 	return s.repo.GetChats(ctx, userID)
@@ -35,20 +45,18 @@ func (s *ChatService) GetFullChat(ctx context.Context, chatID string) (*model.Fu
 	return &model.FullChat{Chat: *chat, Messages: messages}, nil
 }
 
-// HandleNewMessage now performs the translation from llm.StreamResponse to model.StreamResponse
 func (s *ChatService) HandleNewMessage(
 	ctx context.Context,
 	req *CreateMessageRequest,
-	// This channel (going to the API layer) still uses the public model type
 	streamChan chan<- model.StreamResponse,
 ) {
 	defer close(streamChan)
 
-	// --- Step 1 & 2: Get/Create Chat and Save User Message (No Changes) ---
+	isNewChat := req.ChatID == ""
 	chatID := req.ChatID
 	var chat *model.Chat
 	var err error
-	if chatID == "" {
+	if isNewChat {
 		chatID = uuid.NewString()
 		chat = &model.Chat{ID: chatID, UserID: "default-user", Title: truncate(req.Content, 50), Model: req.Model, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 		if err := s.repo.CreateChat(ctx, chat); err != nil {
@@ -64,7 +72,6 @@ func (s *ChatService) HandleNewMessage(
 	userMessage := &model.Message{ID: uuid.NewString(), Role: "user", Content: req.Content, Timestamp: time.Now()}
 	if err := s.repo.AddMessage(ctx, chatID, userMessage); err != nil { log.Printf("Error adding user message to chat %s: %v", chatID, err) }
 
-	// --- Step 3: Prepare LLM Request (No Changes) ---
 	history, err := s.repo.GetMessages(ctx, chatID)
 	if err != nil { log.Printf("Error getting message history for chat %s: %v", chatID, err) }
 	llmMessages := []llm.Message{{Role: "system", Content: req.SystemPrompt}}
@@ -72,24 +79,19 @@ func (s *ChatService) HandleNewMessage(
 	ollamaContext, _ := s.repo.GetOllamaContext(ctx, chatID)
 	llmReq := &llm.GenerateRequest{Model: req.Model, Messages: llmMessages, Context: ollamaContext}
 
-	// --- Step 4: THE FIX - Translation Layer ---
 	var fullResponse strings.Builder
 	var finalContext json.RawMessage
 	
-	// This channel receives the PRIVATE llm.StreamResponse
 	llmStreamChan := make(chan llm.StreamResponse)
 	go s.llm.GenerateStream(ctx, llmReq, llmStreamChan)
 
 	for chunk := range llmStreamChan {
-		// Translate the private llm.StreamResponse to the public model.StreamResponse
 		modelChunk := model.StreamResponse{
 			Content: chunk.Content,
 			Done:    chunk.Done,
 			Context: chunk.Context,
 			Error:   chunk.Error,
 		}
-
-		// Send the PUBLIC model type to the API layer's channel
 		streamChan <- modelChunk
 		
 		if modelChunk.Error != "" {
@@ -103,36 +105,61 @@ func (s *ChatService) HandleNewMessage(
 		}
 	}
 
-	// --- Step 5 & 6: Save Assistant Message & Generate Title (No Changes) ---
 	assistantMessage := &model.Message{ID: uuid.NewString(), Role: "assistant", Content: fullResponse.String(), Timestamp: time.Now()}
 	if err := s.repo.AddMessage(ctx, chatID, assistantMessage); err != nil { log.Printf("Error adding assistant message to chat %s: %v", chatID, err) }
 	if finalContext != nil {
 		if err := s.repo.SetOllamaContext(ctx, chatID, finalContext); err != nil { log.Printf("Error setting Ollama context for chat %s: %v", chatID, err) }
 	}
-	chat.UpdatedAt = time.Now()
-	if err := s.repo.UpdateChat(ctx, chat); err != nil { log.Printf("Error updating chat timestamp for chat %s: %v", chatID, err) }
-	if len(history) <= 1 { go s.generateTitle(context.Background(), chat, req.SupportModel, userMessage.Content, assistantMessage.Content) }
-}
-
-func (s *ChatService) generateTitle(ctx context.Context, chat *model.Chat, supportModel, userQuery, assistantResponse string) {
-	log.Printf("Generating title for chat %s...", chat.ID)
-	prompt := fmt.Sprintf(`Based on the following conversation, create a very short, concise title (4-6 words). Do not use quotes.
-		User: "%s"
-		Assistant: "%s"
-		Title:`, truncate(userQuery, 100), truncate(assistantResponse, 150))
-	req := &llm.GenerateRequest{Model: supportModel, Prompt: prompt}
-	resp, err := s.llm.Generate(ctx, req)
-	if err != nil { log.Printf("Failed to generate title for chat %s: %v", chat.ID, err); return }
-	newTitle := strings.Trim(resp.Response, ` "`)
-	if newTitle != "" {
-		chat.Title = newTitle
-		if err := s.repo.UpdateChat(ctx, chat); err != nil {
-			log.Printf("Failed to update chat %s with new title: %v", chat.ID, err)
-		} else {
-			log.Printf("Successfully updated title for chat %s to: '%s'", chat.ID, newTitle)
-		}
+	
+	if isNewChat {
+		go s.generateTitle(context.Background(), chat.ID, req.SupportModel, userMessage.Content, assistantMessage.Content)
 	}
 }
+
+func (s *ChatService) generateTitle(ctx context.Context, chatID, supportModel, userQuery, assistantResponse string) {
+	log.Printf("Generating title for chat %s using chat-based approach...", chatID)
+
+	messages := []llm.Message{
+		{
+			Role:    "system",
+			Content: "You are an expert at creating short, concise titles for conversations. Respond with only the title, and nothing else.",
+		},
+		{
+			Role: "user",
+			Content: fmt.Sprintf("Based on the following conversation, what would be a good title?\n\n---\nUser: %s\n\nAssistant: %s\n---",
+				truncate(userQuery, 150),
+				truncate(assistantResponse, 200),
+			),
+		},
+	}
+
+	req := &llm.GenerateRequest{
+		Model:    supportModel,
+		Messages: messages,
+	}
+
+	resp, err := s.llm.Generate(ctx, req)
+	if err != nil {
+		log.Printf("Failed to generate title for chat %s: %v", chatID, err)
+		return
+	}
+
+    log.Printf("Raw title response for chat %s: '%s'", chatID, resp.Response)
+
+    newTitle := strings.TrimSpace(resp.Response)
+    newTitle = strings.Trim(newTitle, `"'`)
+
+	if newTitle != "" {
+		if err := s.repo.UpdateChatTitle(ctx, chatID, newTitle); err != nil {
+			log.Printf("Failed to update chat %s with new title: %v", chatID, err)
+		} else {
+			log.Printf("Successfully updated title for chat %s to: '%s'", chatID, newTitle)
+		}
+	} else {
+        log.Printf("Title for chat %s was not updated because the generated title was empty after cleaning.", chatID)
+    }
+}
+
 
 type CreateMessageRequest struct {
 	ChatID string `json:"chat_id"`; Content string `json:"content"`; Model string `json:"model"`; SystemPrompt string `json:"system_prompt"`; SupportModel string `json:"support_model"`

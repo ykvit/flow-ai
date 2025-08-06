@@ -10,12 +10,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Interface definition remains the same
+// Add the new method to the interface
 type Repository interface {
 	CreateChat(ctx context.Context, chat *model.Chat) error
 	GetChat(ctx context.Context, chatID string) (*model.Chat, error)
 	GetChats(ctx context.Context, userID string) ([]*model.Chat, error)
 	UpdateChat(ctx context.Context, chat *model.Chat) error
+	UpdateChatTitle(ctx context.Context, chatID, newTitle string) error // New method
 	AddMessage(ctx context.Context, chatID string, message *model.Message) error
 	GetMessages(ctx context.Context, chatID string) ([]model.Message, error)
 	GetOllamaContext(ctx context.Context, chatID string) ([]byte, error)
@@ -37,7 +38,7 @@ func (r *redisRepository) contextKey(chatID string) string   { return fmt.Sprint
 func (r *redisRepository) messageKey(messageID string) string{ return fmt.Sprintf("message:%s", messageID) }
 func (r *redisRepository) userChatsKey(userID string) string { return fmt.Sprintf("user:%s:chats", userID) }
 
-// --- Chat Operations (no changes) ---
+// --- Chat Operations ---
 func (r *redisRepository) CreateChat(ctx context.Context, chat *model.Chat) error {
 	chatMap, err := structToMap(chat)
 	if err != nil { return fmt.Errorf("could not convert chat to map: %w", err) }
@@ -47,6 +48,7 @@ func (r *redisRepository) CreateChat(ctx context.Context, chat *model.Chat) erro
 	_, err = pipe.Exec(ctx)
 	return err
 }
+
 func (r *redisRepository) GetChat(ctx context.Context, chatID string) (*model.Chat, error) {
 	chatMap, err := r.rdb.HGetAll(ctx, r.chatKey(chatID)).Result()
 	if err != nil { return nil, err }
@@ -54,6 +56,7 @@ func (r *redisRepository) GetChat(ctx context.Context, chatID string) (*model.Ch
 	var chat model.Chat
 	return &chat, mapToStruct(chatMap, &chat)
 }
+
 func (r *redisRepository) GetChats(ctx context.Context, userID string) ([]*model.Chat, error) {
 	chatIDs, err := r.rdb.ZRange(ctx, r.userChatsKey(userID), 0, -1).Result()
 	if err != nil { return nil, err }
@@ -64,9 +67,37 @@ func (r *redisRepository) GetChats(ctx context.Context, userID string) ([]*model
 	}
 	return chats, nil
 }
+
 func (r *redisRepository) UpdateChat(ctx context.Context, chat *model.Chat) error { return r.CreateChat(ctx, chat) }
 
-// --- Message Operations (AddMessage is unchanged) ---
+
+// **NEW FUNCTION**
+// This function efficiently updates only the title of a chat.
+func (r *redisRepository) UpdateChatTitle(ctx context.Context, chatID, newTitle string) error {
+    // We update the title and also the updated_at timestamp.
+    // This will make the chat appear at the top of the list.
+    pipe := r.rdb.TxPipeline()
+    key := r.chatKey(chatID)
+    now := time.Now()
+    
+    pipe.HSet(ctx, key, "title", newTitle)
+    pipe.HSet(ctx, key, "updated_at", now.Format(time.RFC3339Nano))
+
+    // We also need to update the score in the sorted set to re-order the chat list.
+    // First, we need the user_id for the chat.
+    userID, err := r.rdb.HGet(ctx, key, "user_id").Result()
+    if err == nil && userID != "" {
+        pipe.ZAdd(ctx, r.userChatsKey(userID), redis.Z{
+            Score: float64(-now.UnixNano()),
+            Member: chatID,
+        })
+    }
+
+	_, err = pipe.Exec(ctx)
+	return err
+}
+
+// --- Message Operations (unchanged) ---
 func (r *redisRepository) AddMessage(ctx context.Context, chatID string, message *model.Message) error {
 	msgMap, err := structToMap(message)
 	if err != nil { return fmt.Errorf("could not convert message to map: %w", err) }
@@ -76,9 +107,6 @@ func (r *redisRepository) AddMessage(ctx context.Context, chatID string, message
 	_, err = pipe.Exec(ctx)
 	return err
 }
-
-// **ULTIMATE FIX FOR GetMessages**: Using a simple loop instead of a pipeline.
-// This is 100% reliable and avoids any complex type assertion issues.
 func (r *redisRepository) GetMessages(ctx context.Context, chatID string) ([]model.Message, error) {
 	msgIDs, err := r.rdb.ZRange(ctx, r.messagesKey(chatID), 0, -1).Result()
 	if err != nil {
@@ -88,15 +116,10 @@ func (r *redisRepository) GetMessages(ctx context.Context, chatID string) ([]mod
 	if len(msgIDs) == 0 {
 		return []model.Message{}, nil
 	}
-
 	messages := make([]model.Message, 0, len(msgIDs))
 	for _, id := range msgIDs {
-		// Fetch each message one by one. For chat history, this is acceptable.
 		msgMap, err := r.rdb.HGetAll(ctx, r.messageKey(id)).Result()
-		if err != nil {
-			// Log or skip the message if it's missing for some reason
-			continue
-		}
+		if err != nil { continue }
 		var msg model.Message
 		if err := mapToStruct(msgMap, &msg); err == nil {
 			messages = append(messages, msg)
@@ -105,8 +128,7 @@ func (r *redisRepository) GetMessages(ctx context.Context, chatID string) ([]mod
 	return messages, nil
 }
 
-
-// --- Context Operations (no changes) ---
+// --- Context Operations (unchanged) ---
 func (r *redisRepository) GetOllamaContext(ctx context.Context, chatID string) ([]byte, error) {
 	return r.rdb.Get(ctx, r.contextKey(chatID)).Bytes()
 }
@@ -114,7 +136,7 @@ func (r *redisRepository) SetOllamaContext(ctx context.Context, chatID string, o
 	return r.rdb.Set(ctx, r.contextKey(chatID), ollamaContext, 24*time.Hour).Err()
 }
 
-// --- Helper Functions (no changes) ---
+// --- Helper Functions (unchanged) ---
 func structToMap(obj interface{}) (map[string]interface{}, error) {
 	data, err := json.Marshal(obj)
 	if err != nil { return nil, err }
