@@ -23,6 +23,20 @@ func NewChatService(repo repository.Repository, llm llm.LLMProvider) *ChatServic
 	return &ChatService{repo: repo, llm: llm}
 }
 
+// --- NEW Request Struct with Options ---
+
+// CreateMessageRequest is the structure for a new message request from the client.
+// It now includes an optional 'Options' field to override generation parameters.
+type CreateMessageRequest struct {
+	ChatID       string             `json:"chat_id"`
+	Content      string             `json:"content"`
+	Model        string             `json:"model"`
+	SystemPrompt string             `json:"system_prompt"`
+	SupportModel string             `json:"support_model"`
+	Options      *llm.RequestOptions `json:"options,omitempty"` // NEW FIELD
+}
+
+
 // --- Chat Management Methods ---
 
 func (s *ChatService) ListChats(ctx context.Context, userID string) ([]*model.Chat, error) {
@@ -49,7 +63,6 @@ func (s *ChatService) UpdateChatTitle(ctx context.Context, chatID, newTitle stri
 	return s.repo.UpdateChatTitle(ctx, chatID, newTitle)
 }
 
-// NEW FUNCTION: DeleteChat handles the logic for deleting a chat.
 func (s *ChatService) DeleteChat(ctx context.Context, chatID string) error {
 	log.Printf("Deleting chat %s", chatID)
 	return s.repo.DeleteChat(ctx, chatID)
@@ -96,12 +109,26 @@ func (s *ChatService) HandleNewMessage(
 	if err != nil {
 		log.Printf("Error getting message history for chat %s: %v", chatID, err)
 	}
-	llmMessages := []llm.Message{{Role: "system", Content: req.SystemPrompt}}
+
+	// FIX: Prioritize system prompt from options, then from request, then default.
+	systemPrompt := req.SystemPrompt
+	if req.Options != nil && req.Options.System != nil {
+		systemPrompt = *req.Options.System
+	}
+
+	llmMessages := []llm.Message{{Role: "system", Content: systemPrompt}}
 	for _, msg := range history {
 		llmMessages = append(llmMessages, llm.Message{Role: msg.Role, Content: msg.Content})
 	}
 	ollamaContext, _ := s.repo.GetOllamaContext(ctx, chatID)
-	llmReq := &llm.GenerateRequest{Model: req.Model, Messages: llmMessages, Context: ollamaContext}
+
+	// FIX: Pass the options to the LLM request.
+	llmReq := &llm.GenerateRequest{
+		Model:    req.Model,
+		Messages: llmMessages,
+		Context:  ollamaContext,
+		Options:  req.Options, // PASSING THE OPTIONS
+	}
 
 	var fullResponse strings.Builder
 	var finalContext json.RawMessage
@@ -186,15 +213,6 @@ func (s *ChatService) generateTitle(ctx context.Context, chatID, supportModel, u
 	} else {
 		log.Printf("Title for chat %s was not updated because the generated title was empty after cleaning.", chatID)
 	}
-}
-
-
-type CreateMessageRequest struct {
-	ChatID       string `json:"chat_id"`
-	Content      string `json:"content"`
-	Model        string `json:"model"`
-	SystemPrompt string `json:"system_prompt"`
-	SupportModel string `json:"support_model"`
 }
 
 func truncate(s string, n int) string {

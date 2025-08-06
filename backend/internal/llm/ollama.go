@@ -40,14 +40,26 @@ func NewOllamaProvider(url string) LLMProvider {
 	}
 }
 
-// --- Chat Structs ---
+// --- Chat Structs (UPDATED) ---
+
+// RequestOptions holds optional parameters for a generation request.
+// Pointers are used to distinguish between a zero value and a value not being set.
+type RequestOptions struct {
+	Temperature *float32 `json:"temperature,omitempty"`
+	TopK        *int     `json:"top_k,omitempty"`
+	TopP        *float32 `json:"top_p,omitempty"`
+	System      *string  `json:"system,omitempty"` // Allows overriding system prompt per message
+}
+
 type GenerateRequest struct {
 	Model    string          `json:"model"`
 	Prompt   string          `json:"prompt,omitempty"`
 	Messages []Message       `json:"messages,omitempty"`
 	Stream   bool            `json:"stream"`
 	Context  json.RawMessage `json:"context,omitempty"`
+	Options  *RequestOptions `json:"options,omitempty"` // NEW FIELD
 }
+
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
@@ -59,7 +71,7 @@ type GenerateResponse struct {
 	Context  json.RawMessage `json:"context"`
 }
 
-// --- Model Management Structs (NEW) ---
+// --- Model Management Structs ---
 type ListModelsResponse struct {
 	Models []Model `json:"models"`
 }
@@ -93,7 +105,6 @@ type ModelInfo struct {
 
 // --- ollamaProvider methods ---
 
-// Generate and GenerateStream methods remain the same...
 func (p *ollamaProvider) Generate(ctx context.Context, req *GenerateRequest) (*GenerateResponse, error) {
     req.Stream = false
     body, err := json.Marshal(req)
@@ -145,6 +156,7 @@ func (p *ollamaProvider) GenerateStream(ctx context.Context, req *GenerateReques
 	body, err := json.Marshal(req)
 	if err != nil { return fmt.Errorf("could not marshal request: %w", err) }
     
+    // We send the full request to /api/chat which correctly handles messages and options
     httpReq, err := http.NewRequestWithContext(ctx, "POST", p.url+"/api/chat", bytes.NewBuffer(body))
 	if err != nil { return fmt.Errorf("could not create request: %w", err) }
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -188,9 +200,6 @@ func (p *ollamaProvider) GenerateStream(ctx context.Context, req *GenerateReques
 	}
 	return scanner.Err()
 }
-
-
-// --- NEW Model Management Methods ---
 
 func (p *ollamaProvider) ListModels(ctx context.Context) (*ListModelsResponse, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", p.url+"/api/tags", nil)
