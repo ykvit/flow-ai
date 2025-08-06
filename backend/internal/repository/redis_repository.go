@@ -132,15 +132,25 @@ func (r *redisRepository) DeleteChat(ctx context.Context, chatID string) error {
 
 // --- Message Operations ---
 func (r *redisRepository) AddMessage(ctx context.Context, chatID string, message *model.Message) error {
-	msgMap, err := structToMap(message)
-	if err != nil { return fmt.Errorf("could not convert message to map: %w", err) }
+	// FIX: We manually handle the struct-to-map conversion to ensure
+	// the metadata (json.RawMessage) is correctly stored as a string.
+	msgMap := map[string]interface{}{
+		"id":        message.ID,
+		"role":      message.Role,
+		"content":   message.Content,
+		"timestamp": message.Timestamp,
+	}
+	// Only add metadata if it's not nil or empty
+	if len(message.Metadata) > 0 && string(message.Metadata) != "null" {
+		msgMap["metadata"] = string(message.Metadata)
+	}
+
 	pipe := r.rdb.TxPipeline()
 	pipe.HSet(ctx, r.messageKey(message.ID), msgMap)
 	pipe.ZAdd(ctx, r.messagesKey(chatID), redis.Z{Score: float64(message.Timestamp.UnixNano()), Member: message.ID})
-	_, err = pipe.Exec(ctx)
+	_, err := pipe.Exec(ctx)
 	return err
 }
-
 func (r *redisRepository) GetMessages(ctx context.Context, chatID string) ([]model.Message, error) {
 	msgIDs, err := r.rdb.ZRange(ctx, r.messagesKey(chatID), 0, -1).Result()
 	if err != nil {
@@ -174,13 +184,17 @@ func (r *redisRepository) SetOllamaContext(ctx context.Context, chatID string, o
 // --- Helper Functions ---
 func structToMap(obj interface{}) (map[string]interface{}, error) {
 	data, err := json.Marshal(obj)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	var mapData map[string]interface{}
 	return mapData, json.Unmarshal(data, &mapData)
 }
 
 func mapToStruct(data map[string]string, obj interface{}) error {
 	jsonStr, err := json.Marshal(data)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	return json.Unmarshal(jsonStr, obj)
 }

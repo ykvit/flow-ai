@@ -16,11 +16,13 @@ type Chat struct {
 }
 
 // Message stores a single message in a chat.
+// It now includes an optional Metadata field for storing generation stats.
 type Message struct {
-	ID        string    `json:"id"`
-	Role      string    `json:"role"`
-	Content   string    `json:"content"`
-	Timestamp time.Time `json:"timestamp"`
+	ID        string          `json:"id"`
+	Role      string          `json:"role"`
+	Content   string          `json:"content"`
+	Timestamp time.Time       `json:"timestamp"`
+	Metadata  json.RawMessage `json:"metadata,omitempty"`
 }
 
 // FullChat includes the chat metadata and all its messages.
