@@ -1,73 +1,73 @@
-# Web UI for LLMs - Backend
+# Flow-AI: A Self-Hosted Web UI for Ollama
 
-This directory contains the Go backend for the custom Web UI application. It serves as an API server that communicates with a frontend client, a Redis database, and various Large Language Models (LLMs) like Ollama.
+Flow-AI is a modern, responsive, and feature-rich web interface for**** interacting with local Large Language Models through the Ollama service. It is designed to be a complete, self-contained solution that you can run on your own hardware with a single command.
 
-## Features (Version 1.0)
+The project consists of a high-performance Go backend and a (planned) reactive frontend, all orchestrated with Docker.
 
-*   **RESTful API:** Provides endpoints for managing chats, messages, and settings.
-*   **Real-time Streaming:** Uses Server-Sent Events (SSE) to stream responses from the LLM directly to the client for a real-time "typing" effect.
-*   **Ollama Integration:** Connects to an Ollama instance to generate text.
-*   **Persistent Chat History:** Stores all chat and message data in a Redis database.
-*   **Automatic Chat Titles:** After the first exchange in a new chat, it automatically generates a concise title in a background process using a separate "support" model.
-*   **Conversation Context:** Correctly manages and re-uses Ollama's `context` field to ensure conversations are continuous.
-*   **Configuration Management:** Easily configured using a `config.json` file and environment variables.
+## Features
+
+- **Real-time Chat**: Get streaming responses from your LLM for a smooth, natural conversation.
+- **Full Chat History**: All your conversations are saved and can be revisited anytime.
+- **Automatic Conversation Titling**: New chats are automatically named based on their content.
+- **Complete Model Management**: List, pull, inspect, and delete Ollama models directly from the UI.
+- **Dynamic Parameters**: Fine-tune model behavior (like creativity/temperature) for each individual message.
+- **Response Metrics**: View detailed statistics for each AI response, such as generation time and token counts.
 
 ## Tech Stack
 
-*   **Language:** Go 1.22
-*   **Database:** Redis
-*   **API:** REST + Server-Sent Events (SSE)
-*   **Containerization:** Docker & Docker Compose
+- **Backend**: Go with Chi (for routing) and go-redis.
+- **Database**: Redis (for all data persistence).
+- **LLM Service**: Ollama.
+- **Frontend (Legacy)**: A placeholder React app. A new version is planned.
+- **Orchestration**: Docker & Docker Compose.
+- **Proxy**: NGINX (serves the frontend and proxies API requests).
 
-## How to Run
+## Getting Started
 
-1.  **Prerequisites:**
-    *   Docker and Docker Compose must be installed.
-    *   Make sure you have an Ollama model pulled, e.g., `docker exec -it my-webui-ollama-1 ollama pull llama3`.
+### Prerequisites
 
-2.  **Configuration:**
-    *   Create a file `backend/config.json` with the following structure:
-    ```json
-    {
-      "redis_addr": "redis:6379",
-      "ollama_url": "http://ollama:11434",
-      "system_prompt": "You are a helpful assistant.",
-      "main_model": "llama3:latest",
-      "support_model": "llama3:latest"
-    }
+- Docker and Docker Compose must be installed on your machine.
+- If you have an NVIDIA GPU, ensure the NVIDIA Container Toolkit is installed for GPU acceleration.
+- An `ollama` Docker volume should exist to persist your models. If it doesn't, create it: `docker volume create ollama`.
+
+### Installation
+
+1.  **Clone the repository:**
+    ```sh
+    git clone https://your-repo-url/flow-ai.git
+    cd flow-ai
     ```
-    *   The values for `redis_addr` and `ollama_url` are service names from `compose.yaml` and should generally not be changed.
 
-3.  **Build and Run:**
-    *   From the root directory (`my-webui/`), run the command:
-    ```bash
-    docker-compose up --build
+2.  **Run with Docker Compose:**
+    This command will build the frontend and backend, and start all the necessary services (NGINX, Go Backend, Redis, Ollama).
+    ```sh
+    docker compose up --build -d
     ```
-    *   The backend server will be available at `http://localhost:8080`.
+    The `-d` flag runs the containers in detached mode.
 
-## API Endpoints (MVP)
-
-*   `GET /api/settings`: Get current application settings.
-*   `POST /api/settings`: Update application settings.
-*   `GET /api/chats`: Get a list of all chats (metadata only).
-*   `GET /api/chats/{chatID}`: Get the full message history for a specific chat.
-*   `POST /api/chats/messages`: Send a new message. This endpoint initiates an SSE stream for the response. It can be used for both creating a new chat (if `chat_id` is empty) and adding to an existing one.
-    *   **Request Body:**
-        ```json
-        {
-          "chat_id": "optional-uuid-of-existing-chat",
-          "content": "Your message here",
-          "model": "llama3:latest" 
-        }
-        ```
-    *   **Response:** A stream of `text/event-stream` events.
+3.  **Access the Application:**
+    Open your web browser and navigate to `http://localhost:3000`.
 
 ## Project Structure
 
-*   `cmd/server/main.go`: The main entry point of the application.
-*   `internal/api/`: Contains HTTP handlers and router setup.
-*   `internal/service/`: Contains the core business logic.
-*   `internal/repository/`: Handles all communication with the database (Redis).
-*   `internal/llm/`: Provides an abstraction layer for communicating with LLMs (Ollama).
-*   `internal/model/`: Defines the core data structures (Chat, Message).
-*   `internal/config/`: Manages application configuration.
+```
+/
+├── backend/          # Go backend source code
+├── frontend/         # Frontend source code (React)
+├── app/              # Legacy frontend (to be phased out)
+├── k6/               # k6 performance test scripts
+├── compose.yaml      # Docker Compose file for orchestration
+├── Dockerfile        # Multi-stage Dockerfile for building the app
+├── nginx.conf        # NGINX configuration
+└── README.md         # This file
+```
+
+## API Documentation
+
+The backend provides a comprehensive RESTful API for all its features. This is the primary interface for the frontend application.
+
+For detailed specifications, endpoint descriptions, and examples, please see the **[API Documentation](API.md)**.
+
+## Contributing
+
+Contributions are welcome! Please feel free to open an issue or submit a pull request.
