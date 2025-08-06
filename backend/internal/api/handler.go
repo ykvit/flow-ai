@@ -111,6 +111,15 @@ func (h *ChatHandler) UpdateChatTitle(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+func (h *ChatHandler) HandleDeleteChat(w http.ResponseWriter, r *http.Request) {
+	chatID := chi.URLParam(r, "chatID")
+	if err := h.service.DeleteChat(r.Context(), chatID); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not delete chat")
+		return
+	}
+	respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 func respondWithError(w http.ResponseWriter, code int, message string) { respondWithJSON(w, code, map[string]string{"error": message}) }
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	response, _ := json.Marshal(payload)

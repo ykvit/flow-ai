@@ -68,22 +68,33 @@ func (h *ModelHandler) HandlePullModel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	streamChan := make(chan llm.PullStatus)
+	
+	// FIX: The goroutine is now only responsible for writing to the channel.
+	// The main function will handle closing it, preventing a double-close panic.
 	go func() {
-		defer close(streamChan)
-		if err := h.service.Pull(r.Context(), &req, streamChan); err != nil {
-			log.Printf("Error pulling model: %v", err)
-			// Send the final error via the channel if it's still open
+		err := h.service.Pull(r.Context(), &req, streamChan)
+		if err != nil {
+			log.Printf("Error during model pull service call: %v", err)
+			// Attempt to send a final error message if the channel is still open.
+			// This is not guaranteed to be received but is good practice.
 			select {
 			case streamChan <- llm.PullStatus{Error: err.Error()}:
-			default:
+			case <-r.Context().Done():
 			}
 		}
+		// The goroutine *never* closes the channel.
+	}()
+
+	// The main function loop now safely closes the channel once done.
+	defer func() {
+		close(streamChan)
+		log.Println("Finished streaming model pull and closed channel.")
 	}()
 
 	for chunk := range streamChan {
 		if r.Context().Err() != nil {
 			log.Println("Client disconnected during model pull.")
-			break
+			break // Exit the loop, defer will close the channel.
 		}
 		jsonData, _ := json.Marshal(chunk)
 		fmt.Fprintf(w, "data: %s\n\n", string(jsonData))
@@ -91,6 +102,4 @@ func (h *ModelHandler) HandlePullModel(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
-
-	log.Println("Finished streaming model pull.")
 }

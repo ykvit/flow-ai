@@ -30,8 +30,10 @@ func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 			r.Get("/chats", chatHandler.GetChats)
 			r.Get("/chats/{chatID}", chatHandler.GetChat)
 			r.Put("/chats/{chatID}/title", chatHandler.UpdateChatTitle)
+			// This is the new route for deleting a chat
+			r.Delete("/chats/{chatID}", chatHandler.HandleDeleteChat)
 			
-			// --- Models (NEW) ---
+			// --- Models ---
 			r.Get("/models", modelHandler.HandleListModels)
 			r.Post("/models/show", modelHandler.HandleShowModel)
 			r.Delete("/models", modelHandler.HandleDeleteModel)
@@ -42,7 +44,7 @@ func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 	r.Group(func(r chi.Router) {
 		// Chat streaming
 		r.Post("/api/chats/messages", chatHandler.HandleStreamMessage)
-		// Model pull streaming (NEW)
+		// Model pull streaming
 		r.Post("/api/models/pull", modelHandler.HandlePullModel)
 	})
 
