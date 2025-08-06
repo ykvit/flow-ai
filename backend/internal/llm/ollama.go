@@ -22,6 +22,10 @@ type StreamResponse struct {
 type LLMProvider interface {
 	Generate(ctx context.Context, req *GenerateRequest) (*GenerateResponse, error)
 	GenerateStream(ctx context.Context, req *GenerateRequest, ch chan<- StreamResponse) error
+	ListModels(ctx context.Context) (*ListModelsResponse, error)
+	PullModel(ctx context.Context, req *PullModelRequest, ch chan<- PullStatus) error
+	DeleteModel(ctx context.Context, req *DeleteModelRequest) error
+	ShowModelInfo(ctx context.Context, req *ShowModelRequest) (*ModelInfo, error)
 }
 
 type ollamaProvider struct {
@@ -36,7 +40,7 @@ func NewOllamaProvider(url string) LLMProvider {
 	}
 }
 
-// Structs remain the same
+// --- Chat Structs ---
 type GenerateRequest struct {
 	Model    string          `json:"model"`
 	Prompt   string          `json:"prompt,omitempty"`
@@ -55,16 +59,48 @@ type GenerateResponse struct {
 	Context  json.RawMessage `json:"context"`
 }
 
+// --- Model Management Structs (NEW) ---
+type ListModelsResponse struct {
+	Models []Model `json:"models"`
+}
+type Model struct {
+	Name       string `json:"name"`
+	ModifiedAt string `json:"modified_at"`
+	Size       int64  `json:"size"`
+}
+type PullModelRequest struct {
+	Name   string `json:"name"`
+	Stream bool   `json:"stream"`
+}
+type PullStatus struct {
+	Status    string `json:"status"`
+	Digest    string `json:"digest,omitempty"`
+	Total     int64  `json:"total,omitempty"`
+	Completed int64  `json:"completed,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+type DeleteModelRequest struct {
+	Name string `json:"name"`
+}
+type ShowModelRequest struct {
+	Name string `json:"name"`
+}
+type ModelInfo struct {
+	Modelfile  string `json:"modelfile"`
+	Parameters string `json:"parameters"`
+	Template   string `json:"template"`
+}
 
+// --- ollamaProvider methods ---
+
+// Generate and GenerateStream methods remain the same...
 func (p *ollamaProvider) Generate(ctx context.Context, req *GenerateRequest) (*GenerateResponse, error) {
     req.Stream = false
     body, err := json.Marshal(req)
     if err != nil { return nil, fmt.Errorf("could not marshal request: %w", err) }
     
-    // THE FIX: Use the correct, full endpoint path
     endpoint := p.url + "/api/chat"
-    if req.Prompt != "" {
-        // Use /api/generate for single prompts to be safe
+    if len(req.Messages) == 0 {
         endpoint = p.url + "/api/generate"
     }
 
@@ -88,7 +124,7 @@ func (p *ollamaProvider) Generate(ctx context.Context, req *GenerateRequest) (*G
         Context json.RawMessage `json:"context"`
     }
     var chatResp ollamaChatResponse
-    if err := json.Unmarshal(bodyBytes, &chatResp); err == nil {
+    if err := json.Unmarshal(bodyBytes, &chatResp); err == nil && chatResp.Message.Content != "" {
         return &GenerateResponse{
             Model:    chatResp.Model,
             Response: chatResp.Message.Content,
@@ -103,15 +139,12 @@ func (p *ollamaProvider) Generate(ctx context.Context, req *GenerateRequest) (*G
     }
     return &genResp, nil
 }
-
-
 func (p *ollamaProvider) GenerateStream(ctx context.Context, req *GenerateRequest, ch chan<- StreamResponse) error {
 	defer close(ch)
 	req.Stream = true
 	body, err := json.Marshal(req)
 	if err != nil { return fmt.Errorf("could not marshal request: %w", err) }
     
-    // THE FIX: Use the correct, full endpoint path for streaming
     httpReq, err := http.NewRequestWithContext(ctx, "POST", p.url+"/api/chat", bytes.NewBuffer(body))
 	if err != nil { return fmt.Errorf("could not create request: %w", err) }
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -154,4 +187,109 @@ func (p *ollamaProvider) GenerateStream(ctx context.Context, req *GenerateReques
 		}
 	}
 	return scanner.Err()
+}
+
+
+// --- NEW Model Management Methods ---
+
+func (p *ollamaProvider) ListModels(ctx context.Context) (*ListModelsResponse, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", p.url+"/api/tags", nil)
+	if err != nil {
+		return nil, fmt.Errorf("could not create request: %w", err)
+	}
+	resp, err := p.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var listResp ListModelsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&listResp); err != nil {
+		return nil, fmt.Errorf("could not decode response: %w", err)
+	}
+	return &listResp, nil
+}
+
+func (p *ollamaProvider) PullModel(ctx context.Context, req *PullModelRequest, ch chan<- PullStatus) error {
+	defer close(ch)
+	req.Stream = true
+	body, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("could not marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.url+"/api/pull", bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("could not create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.client.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		var status PullStatus
+		if err := json.Unmarshal(scanner.Bytes(), &status); err != nil {
+			ch <- PullStatus{Error: "Failed to decode stream chunk"}
+			continue
+		}
+		select {
+		case ch <- status:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return scanner.Err()
+}
+
+func (p *ollamaProvider) DeleteModel(ctx context.Context, req *DeleteModelRequest) error {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("could not marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "DELETE", p.url+"/api/delete", bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("could not create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.client.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("api returned non-200 status: %s", resp.Status)
+	}
+	return nil
+}
+
+func (p *ollamaProvider) ShowModelInfo(ctx context.Context, req *ShowModelRequest) (*ModelInfo, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.url+"/api/show", bytes.NewBuffer(body))
+	if err != nil {
+		return nil, fmt.Errorf("could not create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	resp, err := p.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var info ModelInfo
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return nil, fmt.Errorf("could not decode response: %w", err)
+	}
+	return &info, nil
 }
