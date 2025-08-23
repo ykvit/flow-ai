@@ -137,7 +137,7 @@ Endpoints for listing, downloading, and managing local Ollama models.
 - **Body:**
   ```json
   {
-    "name": "qwen:0.6b"
+    "name": "qwen3:0.6b"
   }
   ```
 - **Response:** A `text/event-stream` of progress status objects.
@@ -206,7 +206,7 @@ Endpoints for listing, downloading, and managing local Ollama models.
   ```json
   {
     "system_prompt": "You are a pirate captain.",
-    "main_model": "qwen:0.6b"
+    "main_model": "qwen3:0.6b"
   }
   ```
 - **Response `200 OK`:** `{"status": "ok"}`

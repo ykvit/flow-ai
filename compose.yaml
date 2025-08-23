@@ -27,8 +27,10 @@ services:
     environment:
       - REDIS_ADDR=redis:6379
       - OLLAMA_URL=http://ollama:11434
+      - INITIAL_SYSTEM_PROMPT=You are a helpful assistant.
+      - INITIAL_MAIN_MODEL=qwen3:0.6b
+      - INITIAL_SUPPORT_MODEL=qwen3:0.6b
     volumes:
-      - ./backend/config.json:/app/config.json:ro
       - uploads:/app/uploads
     networks:
       - flow-network

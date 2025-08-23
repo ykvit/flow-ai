@@ -1,42 +1,50 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net/http"
+	"time"
+
+	"github.com/redis/go-redis/v9"
 	"flow-ai/backend/internal/api"
 	"flow-ai/backend/internal/config"
 	"flow-ai/backend/internal/llm"
 	"flow-ai/backend/internal/repository"
 	"flow-ai/backend/internal/service"
-	"net/http"
-	"time"
-
-	"github.com/redis/go-redis/v9"
 )
 
 func main() {
-	cfg, err := config.Load()
+	bootstrapCfg, err := config.LoadBootstrapConfig()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		log.Fatalf("Failed to load bootstrap configuration: %v", err)
 	}
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr: cfg.RedisAddr,
-	})
+	rdb := redis.NewClient(&redis.Options{Addr: bootstrapCfg.RedisAddr})
 	log.Println("Successfully connected to Redis.")
 
-	// Dependencies
+	// Create providers and repositories first
 	repo := repository.NewRedisRepository(rdb)
-	ollamaProvider := llm.NewOllamaProvider(cfg.OllamaURL)
+	ollamaProvider := llm.NewOllamaProvider(bootstrapCfg.OllamaURL)
 	
-	// Chat dependencies
-	chatService := service.NewChatService(repo, ollamaProvider)
-	chatHandler := api.NewChatHandler(chatService, cfg)
+	// NEW: Pass the ollamaProvider to the SettingsService
+	settingsService := service.NewSettingsService(rdb, ollamaProvider)
+	
+	// InitAndGet now performs smart initialization
+	appSettings, err := settingsService.InitAndGet(context.Background(), bootstrapCfg)
+	if err != nil {
+		log.Fatalf("Failed to initialize application settings: %v", err)
+	}
+	log.Printf("Loaded application settings. Main model is: %s", appSettings.MainModel)
 
-	// Model management dependencies
+	// Create other services with their dependencies
+	chatService := service.NewChatService(repo, ollamaProvider, settingsService)
 	modelService := service.NewModelService(ollamaProvider)
+	
+	// Create handlers
+	chatHandler := api.NewChatHandler(chatService, settingsService)
 	modelHandler := api.NewModelHandler(modelService)
 
-	// FIX IS HERE: Pass both handlers to the router, as required.
 	router := api.NewRouter(chatHandler, modelHandler)
 
 	server := &http.Server{

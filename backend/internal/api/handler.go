@@ -4,49 +4,69 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"flow-ai/backend/internal/config"
+	"net/http"
 	"flow-ai/backend/internal/model"
 	"flow-ai/backend/internal/service"
-	"net/http"
 
 	"github.com/go-chi/chi/v5"
 )
 
+// ChatHandler now depends on ChatService and SettingsService.
 type ChatHandler struct {
-	service *service.ChatService
-	cfg     *config.Config
+	chatService     *service.ChatService
+	settingsService *service.SettingsService
 }
 
-func NewChatHandler(svc *service.ChatService, cfg *config.Config) *ChatHandler {
-	return &ChatHandler{service: svc, cfg: cfg}
+// NewChatHandler is updated to accept the new dependencies.
+func NewChatHandler(chatSvc *service.ChatService, settingsSvc *service.SettingsService) *ChatHandler {
+	return &ChatHandler{
+		chatService:     chatSvc,
+		settingsService: settingsSvc,
+	}
 }
 
-// ... (GetSettings, UpdateSettings, GetChats, GetChat functions are IDENTICAL to the last version) ...
-func (h *ChatHandler) GetSettings(w http.ResponseWriter, r *http.Request) { respondWithJSON(w, http.StatusOK, h.cfg) }
+// GetSettings now fetches dynamic settings from the SettingsService.
+func (h *ChatHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.settingsService.Get(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not retrieve settings")
+		return
+	}
+	respondWithJSON(w, http.StatusOK, settings)
+}
+
+// UpdateSettings now saves dynamic settings via the SettingsService.
 func (h *ChatHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
-	var newCfg config.Config
-	if err := json.NewDecoder(r.Body).Decode(&newCfg); err != nil {
+	var newSettings service.Settings
+	if err := json.NewDecoder(r.Body).Decode(&newSettings); err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	h.cfg.SystemPrompt = newCfg.SystemPrompt
-	h.cfg.MainModel = newCfg.MainModel
-	h.cfg.SupportModel = newCfg.SupportModel
+
+	if err := h.settingsService.Save(r.Context(), &newSettings); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not save settings")
+		return
+	}
+
 	log.Println("Settings updated.")
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
+
+// GetChats remains the same.
 func (h *ChatHandler) GetChats(w http.ResponseWriter, r *http.Request) {
-	userID := "default-user"
-	chats, err := h.service.ListChats(r.Context(), userID)
+	userID := "default-user" // This will be replaced with auth later.
+	chats, err := h.chatService.ListChats(r.Context(), userID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not retrieve chats")
 		return
 	}
 	respondWithJSON(w, http.StatusOK, chats)
 }
+
+// GetChat remains the same.
 func (h *ChatHandler) GetChat(w http.ResponseWriter, r *http.Request) {
 	chatID := chi.URLParam(r, "chatID")
-	fullChat, err := h.service.GetFullChat(r.Context(), chatID)
+	fullChat, err := h.chatService.GetFullChat(r.Context(), chatID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Chat not found")
 		return
@@ -54,8 +74,8 @@ func (h *ChatHandler) GetChat(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, fullChat)
 }
 
-
-// HandleStreamMessage now creates a channel of model.StreamResponse
+// HandleStreamMessage is now simplified.
+// It no longer needs to resolve default settings, as the service layer handles that.
 func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -64,16 +84,13 @@ func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request
 	var req service.CreateMessageRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("Error decoding request body: %v", err)
-		fmt.Fprintf(w, "event: error\ndata: %s\n\n", `{"error": "Invalid request body"}`)
+		// Use a helper to send a structured SSE error
+		sendStreamError(w, "Invalid request body")
 		return
 	}
-	if req.Model == "" { req.Model = h.cfg.MainModel }
-	if req.SystemPrompt == "" { req.SystemPrompt = h.cfg.SystemPrompt }
-	if req.SupportModel == "" { req.SupportModel = h.cfg.SupportModel }
 
-	// IMPORTANT: The channel now uses the shared model type
 	streamChan := make(chan model.StreamResponse)
-	go h.service.HandleNewMessage(r.Context(), &req, streamChan)
+	go h.chatService.HandleNewMessage(r.Context(), &req, streamChan)
 
 	for chunk := range streamChan {
 		if r.Context().Err() != nil {
@@ -90,6 +107,8 @@ func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request
 	log.Println("Finished streaming response.")
 }
 
+// --- Title and Chat Deletion Handlers ---
+
 // UpdateTitleRequest is the structure for the manual title update request.
 type UpdateTitleRequest struct {
 	Title string `json:"title"`
@@ -103,7 +122,7 @@ func (h *ChatHandler) UpdateChatTitle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.UpdateChatTitle(r.Context(), chatID, req.Title); err != nil {
+	if err := h.chatService.UpdateChatTitle(r.Context(), chatID, req.Title); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not update chat title")
 		return
 	}
@@ -113,17 +132,33 @@ func (h *ChatHandler) UpdateChatTitle(w http.ResponseWriter, r *http.Request) {
 
 func (h *ChatHandler) HandleDeleteChat(w http.ResponseWriter, r *http.Request) {
 	chatID := chi.URLParam(r, "chatID")
-	if err := h.service.DeleteChat(r.Context(), chatID); err != nil {
+	if err := h.chatService.DeleteChat(r.Context(), chatID); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not delete chat")
 		return
 	}
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func respondWithError(w http.ResponseWriter, code int, message string) { respondWithJSON(w, code, map[string]string{"error": message}) }
+// --- Helper Functions ---
+
+func respondWithError(w http.ResponseWriter, code int, message string) {
+	respondWithJSON(w, code, map[string]string{"error": message})
+}
+
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	response, _ := json.Marshal(payload)
+	response, err := json.Marshal(payload)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal server error"))
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	w.Write(response)
+}
+
+func sendStreamError(w http.ResponseWriter, message string) {
+	errorPayload := map[string]string{"error": message}
+	jsonData, _ := json.Marshal(errorPayload)
+	fmt.Fprintf(w, "event: error\ndata: %s\n\n", string(jsonData))
 }
