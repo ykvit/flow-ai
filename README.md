@@ -1,73 +1,88 @@
-# Flow-AI: A Self-Hosted Web UI for Ollama
+# Flow-AI: An Open-Source WebUI for LLMs
 
-Flow-AI is a modern, responsive, and feature-rich web interface for**** interacting with local Large Language Models through the Ollama service. It is designed to be a complete, self-contained solution that you can run on your own hardware with a single command.
+Flow-AI is a powerful, self-hostable, and user-friendly web interface for interacting with local Large Language Models (LLMs) through Ollama. It is designed to be a lightweight and feature-rich alternative to other popular WebUIs.
 
-The project consists of a high-performance Go backend and a (planned) reactive frontend, all orchestrated with Docker.
 
-## Features
+## ✨ Core Features
 
-- **Real-time Chat**: Get streaming responses from your LLM for a smooth, natural conversation.
-- **Full Chat History**: All your conversations are saved and can be revisited anytime.
-- **Automatic Conversation Titling**: New chats are automatically named based on their content.
-- **Complete Model Management**: List, pull, inspect, and delete Ollama models directly from the UI.
-- **Dynamic Parameters**: Fine-tune model behavior (like creativity/temperature) for each individual message.
-- **Response Metrics**: View detailed statistics for each AI response, such as generation time and token counts.
+- **Real-time Chat:** Get streaming responses from your local models instantly.
+- **SQLite Powered:** No external database needed. All chat history is stored in a simple, persistent SQLite database.
+- **Dynamic Model Management:** Pull, delete, and inspect Ollama models directly from the UI.
+- **Dynamic Configuration:** On first launch, the app intelligently detects your latest Ollama model and sets it as the default.
+- **Per-Request Options:** Customize generation parameters like temperature, seed, and system prompts for each message.
+- **Containerized & Simple Deployment:** Get up and running in minutes with a single `docker-compose up` command.
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-- **Backend**: Go with Chi (for routing) and go-redis.
-- **Database**: Redis (for all data persistence).
-- **LLM Service**: Ollama.
-- **Frontend (Legacy)**: A placeholder React app. A new version is planned.
-- **Orchestration**: Docker & Docker Compose.
-- **Proxy**: NGINX (serves the frontend and proxies API requests).
+- **Backend:** Go (Golang)
+  - **Web Framework:** Chi
+  - **Database:** SQLite
+  - **LLM Engine:** [Ollama](https://ollama.com/)
+- **Frontend:** (To be developed - currently a placeholder)
+- **Deployment:** Docker & Docker Compose
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Docker and Docker Compose must be installed on your machine.
-- If you have an NVIDIA GPU, ensure the NVIDIA Container Toolkit is installed for GPU acceleration.
-- An `ollama` Docker volume should exist to persist your models. If it doesn't, create it: `docker volume create ollama`.
+- [Docker](https://www.docker.com/get-started)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+- NVIDIA GPU with drivers (for GPU acceleration with Ollama)
 
 ### Installation
 
 1.  **Clone the repository:**
     ```sh
-    git clone https://your-repo-url/flow-ai.git
+    git clone https://github.com/ykvit/flow-ai.git
     cd flow-ai
     ```
 
-2.  **Run with Docker Compose:**
-    This command will build the frontend and backend, and start all the necessary services (NGINX, Go Backend, Redis, Ollama).
+2.  **Build and run the application:**
     ```sh
-    docker compose up --build -d
+    docker compose up --build
     ```
-    The `-d` flag runs the containers in detached mode.
+    The first launch might take a few minutes as Docker builds the images.
 
-3.  **Access the Application:**
-    Open your web browser and navigate to `http://localhost:3000`.
+3.  **Access the application:**
+    - The frontend will be available at `http://localhost:3000`.
+    - The backend API is accessible at `http://localhost:8000/api`.
 
-## Project Structure
+### Post-Installation: Pull a Model
 
-```
-/
-├── backend/          # Go backend source code
-├── frontend/         # Frontend source code (React)
-├── app/              # Legacy frontend (to be phased out)
-├── k6/               # k6 performance test scripts
-├── compose.yaml      # Docker Compose file for orchestration
-├── Dockerfile        # Multi-stage Dockerfile for building the app
-├── nginx.conf        # NGINX configuration
-└── README.md         # This file
+On the first launch, your Ollama instance will be empty. You need to pull a model before you can start chatting. You can do this via the API.
+
+**Example: Pulling the `gemma3:1b` model:**
+```sh
+curl -N -X POST http://localhost:8000/api/models/pull \
+-H "Content-Type: application/json" \
+-d '{"name": "gemma3:1b"}'
 ```
 
-## API Documentation
+After the model is downloaded, the application will automatically use it as the default.
 
-The backend provides a comprehensive RESTful API for all its features. This is the primary interface for the frontend application.
+## 📚 Documentation
 
-For detailed specifications, endpoint descriptions, and examples, please see the **[API Documentation](API.md)**.
+- **[Backend Architecture](backend/backend.md):** A detailed explanation of the backend design and key decisions.
+- **[API Specification](API.md):** Complete documentation for the backend API endpoints.
 
-## Contributing
+## ⚙️ Configuration
 
-Contributions are welcome! Please feel free to open an issue or submit a pull request.
+The application uses a hierarchical configuration system, making it flexible for both Docker and local development.
+
+**The order of priority is:**
+
+1.  **Environment Variables (Highest Priority):** This is the primary method for configuring the application in Docker. Variables are set in the `compose.yaml` file (e.g., `OLLAMA_URL`, `DATABASE_PATH`).
+
+2.  **`config.json` file (Fallback):** If an environment variable is not set, the application will look for the corresponding value in the `backend/config.json` file. This file is included in the repository to provide a seamless setup for local development without Docker.
+
+3.  **Default Values (Lowest Priority):** If a setting is found in neither of the above, a hardcoded default value will be used.
+
+This means that when you run `docker compose up`, the settings from `compose.yaml` will **always** be used, regardless of what is in `config.json`.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a pull request or open an issue.
+
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
