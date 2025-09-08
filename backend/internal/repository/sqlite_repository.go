@@ -18,6 +18,7 @@ func NewSQLiteRepository(db *sql.DB) Repository {
 	return &sqliteRepository{db: db}
 }
 
+// ... (методи CreateChat, GetChat, GetChats, UpdateChatTitle, DeleteChat залишаються без змін) ...
 func (r *sqliteRepository) CreateChat(ctx context.Context, chat *model.Chat) error {
 	query := "INSERT INTO chats (id, user_id, title, model, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
 	_, err := r.db.ExecContext(ctx, query, chat.ID, chat.UserID, chat.Title, chat.Model, chat.CreatedAt, chat.UpdatedAt)
@@ -64,25 +65,31 @@ func (r *sqliteRepository) UpdateChatTitle(ctx context.Context, chatID, newTitle
 }
 
 func (r *sqliteRepository) DeleteChat(ctx context.Context, chatID string) error {
-	// ON DELETE CASCADE in schema will handle deleting messages.
 	query := "DELETE FROM chats WHERE id = ?"
 	_, err := r.db.ExecContext(ctx, query, chatID)
 	return err
 }
 
+// REFACTORED: This method now uses a transaction to ensure data integrity.
 func (r *sqliteRepository) AddMessage(ctx context.Context, message *model.Message, chatID string) error {
-	// Marshal metadata to JSON string.
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	// Ensure transaction is rolled back on error
+	defer tx.Rollback()
+
 	var metadata sql.NullString
 	if len(message.Metadata) > 0 && string(message.Metadata) != "null" {
 		metadata.String = string(message.Metadata)
 		metadata.Valid = true
 	}
 
-	query := `
+	insertMsgQuery := `
 		INSERT INTO messages (id, chat_id, parent_id, role, content, model, timestamp, metadata, context, is_active)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := r.db.ExecContext(ctx, query,
+	_, err = tx.ExecContext(ctx, insertMsgQuery,
 		message.ID,
 		chatID,
 		message.ParentID,
@@ -92,20 +99,22 @@ func (r *sqliteRepository) AddMessage(ctx context.Context, message *model.Messag
 		message.Timestamp,
 		metadata,
 		message.Context,
-		true, // For now, all new messages are active
+		true,
 	)
-	
 	if err != nil {
-		return err
+		return fmt.Errorf("could not insert message: %w", err)
 	}
 	
-	// Also update the chat's updated_at timestamp.
 	updateChatQuery := "UPDATE chats SET updated_at = ? WHERE id = ?"
-	_, err = r.db.ExecContext(ctx, updateChatQuery, time.Now().UTC(), chatID)
+	_, err = tx.ExecContext(ctx, updateChatQuery, time.Now().UTC(), chatID)
+	if err != nil {
+		return fmt.Errorf("could not update chat timestamp: %w", err)
+	}
 
-	return err
+	return tx.Commit()
 }
 
+// ... (решта методів залишаються без змін) ...
 func (r *sqliteRepository) GetActiveMessagesByChatID(ctx context.Context, chatID string) ([]model.Message, error) {
 	query := `
 		SELECT id, parent_id, role, content, model, timestamp, metadata, context
@@ -155,7 +164,7 @@ func (r *sqliteRepository) GetLastActiveMessage(ctx context.Context, chatID stri
 	err := row.Scan(&msg.ID, &context)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil // Not an error, just no previous message.
+			return nil, nil
 		}
 		return nil, err
 	}

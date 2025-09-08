@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"slices"
@@ -14,6 +15,8 @@ import (
 	"flow-ai/backend/internal/model"
 	"flow-ai/backend/internal/repository"
 )
+
+// ... (весь код до generateTitle залишається без змін) ...
 
 // ChatService handles the core business logic for chat operations.
 type ChatService struct {
@@ -27,7 +30,6 @@ func NewChatService(repo repository.Repository, llm llm.LLMProvider, settingsSer
 	return &ChatService{repo: repo, llm: llm, settingsService: settingsService}
 }
 
-// UpdateChatTitle handles the logic for manually updating a chat's title.
 func (s *ChatService) UpdateChatTitle(ctx context.Context, chatID, newTitle string) error {
     if newTitle == "" {
         return fmt.Errorf("title cannot be empty")
@@ -36,30 +38,63 @@ func (s *ChatService) UpdateChatTitle(ctx context.Context, chatID, newTitle stri
 	return s.repo.UpdateChatTitle(ctx, chatID, newTitle)
 }
 
-// DeleteChat handles the logic for deleting a chat and all its related data.
 func (s *ChatService) DeleteChat(ctx context.Context, chatID string) error {
 	log.Printf("Deleting chat %s", chatID)
 	return s.repo.DeleteChat(ctx, chatID)
 }
 
-// ListChats retrieves all chats for a given user.
 func (s *ChatService) ListChats(ctx context.Context, userID string) ([]*model.Chat, error) {
 	return s.repo.GetChats(ctx, userID)
 }
 
-// GetFullChat retrieves the full history of a single chat.
 func (s *ChatService) GetFullChat(ctx context.Context, chatID string) (*model.FullChat, error) {
 	chat, err := s.repo.GetChat(ctx, chatID)
 	if err != nil { return nil, fmt.Errorf("could not get chat: %w", err) }
 	
-	// Get only the active messages for the main chat view.
 	messages, err := s.repo.GetActiveMessagesByChatID(ctx, chatID)
 	if err != nil { return nil, fmt.Errorf("could not get messages: %w", err) }
 
 	return &model.FullChat{Chat: *chat, Messages: messages}, nil
 }
 
-// HandleNewMessage is now updated with model validation.
+func (s *ChatService) resolveModels(ctx context.Context, req *CreateMessageRequest, currentSettings *Settings) (mainModel, supportModel, systemPrompt string, err error) {
+	mainModel = req.Model
+	if mainModel == "" {
+		mainModel = currentSettings.MainModel
+	} else {
+		availableModels, err := s.llm.ListModels(ctx)
+		if err != nil {
+			log.Printf("WARN: Could not list models to validate request model '%s': %v", mainModel, err)
+		} else {
+			modelNames := make([]string, len(availableModels.Models))
+			for i, m := range availableModels.Models { modelNames[i] = m.Name }
+			if !slices.Contains(modelNames, mainModel) {
+				return "", "", "", fmt.Errorf("model '%s' specified in request is not available", mainModel)
+			}
+		}
+	}
+
+	if mainModel == "" {
+		return "", "", "", errors.New("no main model is configured or available, please pull a model first")
+	}
+
+	supportModel = req.SupportModel
+	if supportModel == "" { 
+		supportModel = currentSettings.SupportModel 
+	}
+
+	systemPrompt = req.SystemPrompt
+	if systemPrompt == "" { 
+		systemPrompt = currentSettings.SystemPrompt 
+	}
+    if req.Options != nil && req.Options.System != nil { 
+		systemPrompt = *req.Options.System 
+	}
+
+	return mainModel, supportModel, systemPrompt, nil
+}
+
+
 func (s *ChatService) HandleNewMessage(
 	ctx context.Context,
 	req *CreateMessageRequest,
@@ -74,35 +109,15 @@ func (s *ChatService) HandleNewMessage(
 		return
 	}
 
-	modelToUse := req.Model
-	if modelToUse == "" {
-		modelToUse = currentSettings.MainModel
-	} else {
-		// Validate that the requested model exists.
-		availableModels, err := s.llm.ListModels(ctx)
-		if err != nil {
-			log.Printf("WARN: Could not list models to validate request model '%s': %v", modelToUse, err)
-		} else {
-			modelNames := make([]string, len(availableModels.Models))
-			for i, m := range availableModels.Models { modelNames[i] = m.Name }
-			if !slices.Contains(modelNames, modelToUse) {
-				errorMsg := fmt.Sprintf("Model '%s' specified in request is not available", modelToUse)
-				streamChan <- model.StreamResponse{Error: errorMsg}
-				return
-			}
-		}
+	modelToUse, supportModelToUse, systemPromptToUse, err := s.resolveModels(ctx, req, currentSettings)
+	if err != nil {
+		streamChan <- model.StreamResponse{Error: err.Error()}
+		return
 	}
 	
-	supportModelToUse := req.SupportModel
-	if supportModelToUse == "" { supportModelToUse = currentSettings.SupportModel }
-	systemPromptToUse := req.SystemPrompt
-	if systemPromptToUse == "" { systemPromptToUse = currentSettings.SystemPrompt }
-    if req.Options != nil && req.Options.System != nil { systemPromptToUse = *req.Options.System }
-
 	isNewChat := req.ChatID == ""
 	chatID := req.ChatID
 	
-	// Create chat if it's a new conversation.
 	if isNewChat {
 		chatID = uuid.NewString()
 		chat := &model.Chat{ID: chatID, UserID: "default-user", Title: truncate(req.Content, 50), Model: modelToUse, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
@@ -113,7 +128,6 @@ func (s *ChatService) HandleNewMessage(
 		}
 	}
 
-	// Get the context and parent ID from the last message in the active thread.
 	lastMessage, err := s.repo.GetLastActiveMessage(ctx, chatID)
 	if err != nil { log.Printf("Error getting last message for chat %s: %v", chatID, err) }
 	
@@ -124,15 +138,14 @@ func (s *ChatService) HandleNewMessage(
 		ollamaContext = lastMessage.Context
 	}
 
-	// Save the user's message.
 	userMessage := &model.Message{ID: uuid.NewString(), ParentID: parentID, Role: "user", Content: req.Content, Timestamp: time.Now().UTC()}
 	if err := s.repo.AddMessage(ctx, userMessage, chatID); err != nil { 
 		log.Printf("Error adding user message to chat %s: %v", chatID, err) 
 	}
 
-	// Prepare messages for the LLM, including history.
 	history, err := s.repo.GetActiveMessagesByChatID(ctx, chatID)
 	if err != nil { log.Printf("Error getting message history for chat %s: %v", chatID, err) }
+	
 	llmMessages := []llm.Message{{Role: "system", Content: systemPromptToUse}}
 	for _, msg := range history {
 		llmMessages = append(llmMessages, llm.Message{Role: msg.Role, Content: msg.Content})
@@ -152,13 +165,7 @@ func (s *ChatService) HandleNewMessage(
 	go s.llm.GenerateStream(ctx, llmReq, llmStreamChan)
 	
 	for chunk := range llmStreamChan {
-		// FIX: Manually create the model.StreamResponse instead of direct conversion.
-		modelChunk := model.StreamResponse{
-			Content: chunk.Content,
-			Done:    chunk.Done,
-			Context: chunk.Context,
-			Error:   chunk.Error,
-		}
+		modelChunk := model.StreamResponse{Content: chunk.Content, Done: chunk.Done, Context: chunk.Context, Error: chunk.Error}
 		streamChan <- modelChunk
 		
 		if chunk.Error != "" { break }
@@ -168,27 +175,28 @@ func (s *ChatService) HandleNewMessage(
 			finalStats = chunk.Stats
 		}
 	}
+	log.Println("Finished streaming response.")
 
-	// Save the assistant's message.
 	var metadata json.RawMessage
 	if finalStats != nil {
 		metadata, _ = json.Marshal(finalStats)
 	}
+
 	assistantMessage := &model.Message{
 		ID:        uuid.NewString(),
-		ParentID:  &userMessage.ID, // Parent is the user message.
+		ParentID:  &userMessage.ID,
 		Role:      "assistant",
 		Content:   fullResponse.String(),
 		Model:     &modelToUse,
 		Timestamp: time.Now().UTC(),
 		Metadata:  metadata,
 	}
+
 	if err := s.repo.AddMessage(ctx, assistantMessage, chatID); err != nil {
 		log.Printf("CRITICAL: Failed to save assistant message to chat %s: %v", chatID, err)
 		return
 	}
 	
-	// Update the assistant message with the final context from the LLM.
 	if finalContext != nil {
 		if err := s.repo.UpdateMessageContext(ctx, assistantMessage.ID, finalContext); err != nil {
 			log.Printf("Error setting Ollama context for message %s: %v", assistantMessage.ID, err)
@@ -200,26 +208,85 @@ func (s *ChatService) HandleNewMessage(
 	}
 }
 
+
+// REFACTORED AGAIN: This function now intelligently extracts JSON from a noisy response.
 func (s *ChatService) generateTitle(ctx context.Context, chatID, supportModel, userQuery, assistantResponse string) {
 	log.Printf("Generating title for chat %s...", chatID)
-	messages := []llm.Message{
-		{Role: "system", Content: "You create short, concise titles for conversations. Respond with only the title."},
-		{Role: "user", Content: fmt.Sprintf("Conversation:\nUser: %s\nAssistant: %s\n\nTitle:", truncate(userQuery, 150), truncate(assistantResponse, 200))},
-	}
-	req := &llm.GenerateRequest{ Model: supportModel, Messages: messages }
+
+	prompt := fmt.Sprintf(
+		`Analyze the following conversation and generate a short, concise title (5 words max).
+		Respond with ONLY a JSON object in the format {"title": "your generated title"}. Do not add any other text or explanations.
+		
+		CONVERSATION:
+		User: %s
+		Assistant: %s`,
+		truncate(userQuery, 150),
+		truncate(assistantResponse, 200),
+	)
+	
+	messages := []llm.Message{{Role: "user", Content: prompt}}
+	req := &llm.GenerateRequest{Model: supportModel, Messages: messages}
 	resp, err := s.llm.Generate(ctx, req)
 	if err != nil {
 		log.Printf("Failed to generate title for chat %s: %v", chatID, err)
 		return
 	}
-    newTitle := strings.Trim(strings.TrimSpace(resp.Response), `"'`)
-	if newTitle != "" {
-		if err := s.repo.UpdateChatTitle(ctx, chatID, newTitle); err != nil {
+
+    log.Printf("Raw title response for chat %s: '%s'", chatID, resp.Response)
+
+	// --- Start of the new "smart parsing" logic ---
+	jsonString := extractJSON(resp.Response)
+	// --- End of the new logic ---
+
+	type TitleResponse struct {
+		Title string `json:"title"`
+	}
+	var titleResp TitleResponse
+	var newTitle string
+
+	if jsonString != "" {
+		if err := json.Unmarshal([]byte(jsonString), &titleResp); err != nil {
+			log.Printf("WARN: Found a JSON-like string but failed to parse for chat %s: %v", chatID, err)
+			// As a last resort, we clean the raw response.
+			newTitle = cleanRawTitle(resp.Response)
+		} else {
+			newTitle = titleResp.Title
+		}
+	} else {
+		log.Printf("WARN: No JSON found in title response for chat %s. Cleaning raw response.", chatID)
+		newTitle = cleanRawTitle(resp.Response)
+	}
+
+	if trimmedTitle := strings.TrimSpace(newTitle); trimmedTitle != "" {
+		if err := s.repo.UpdateChatTitle(ctx, chatID, trimmedTitle); err != nil {
 			log.Printf("Failed to update chat %s with new title: %v", chatID, err)
 		} else {
-			log.Printf("Successfully updated title for chat %s to: '%s'", chatID, newTitle)
+			log.Printf("Successfully updated title for chat %s to: '%s'", chatID, trimmedTitle)
 		}
 	}
+}
+
+// extractJSON finds the first occurrence of a JSON object within a larger string.
+func extractJSON(s string) string {
+	start := strings.Index(s, "{")
+	if start == -1 {
+		return ""
+	}
+	end := strings.LastIndex(s, "}")
+	if end == -1 || end < start {
+		return ""
+	}
+	return s[start : end+1]
+}
+
+// cleanRawTitle is a fallback to remove common noise from the title.
+func cleanRawTitle(s string) string {
+	// Remove <think> tags and their content
+	s = strings.Split(s, "<think>")[0]
+	// Remove JSON formatting if it's wrapping the title
+	s = strings.TrimPrefix(s, "```json")
+	s = strings.TrimSuffix(s, "```")
+	return strings.Trim(s, ` "'\n\t`)
 }
 
 type CreateMessageRequest struct {
