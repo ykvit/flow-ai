@@ -1,46 +1,31 @@
 # Backend Service for Flow-AI
 
-This directory contains the Go backend service for the Flow-AI application. It acts as a robust API server that handles all business logic, communicates with the Ollama service for AI generation, and uses Redis for data persistence.
+This directory contains the Go backend service for the Flow-AI application. It acts as a robust API server that handles all business logic, communicates with the Ollama service for AI generation, and uses **SQLite** for data persistence.
 
 ## Architecture
 
 The backend follows the principles of Clean Architecture to ensure a clear separation of concerns, making the codebase maintainable and testable.
 
 - **/cmd/server**: The main entry point of the application. It initializes dependencies and starts the HTTP server.
-- **/internal/api**: Contains HTTP handlers and the router. This layer is responsible for handling incoming requests, parsing them, and sending back responses.
-- **/internal/service**: Holds the core business logic. Services coordinate tasks between the API layer, the repository, and the LLM provider.
-- **/internal/repository**: Manages all data persistence logic. It provides an interface for interacting with the database (Redis) and hides the implementation details from the rest of the application.
-- **/internal/llm**: Contains the logic for communicating with external Large Language Model providers. It defines an interface, making it easy to add new providers (like OpenAI or Gemini) in the future.
-- **/internal/model**: Defines the core data structures used throughout the application (e.g., `Chat`, `Message`).
+- **/internal/api**: Contains HTTP handlers and the router.
+- **/internal/service**: Holds the core business logic.
+- **/internal/repository**: Manages all data persistence logic. It provides an interface for interacting with the database (**SQLite**).
+- **/internal/database**: Contains logic for initializing the database connection and schema.
+- **/internal/llm**: Contains the logic for communicating with external LLM providers.
+- **/internal/model**: Defines the core data structures used throughout the application.
 - **/internal/config**: Handles loading and managing application configuration.
 
 ## Core Features
 
-- **Real-time Chat Streaming**: Uses Server-Sent Events (SSE) to stream responses from the LLM to the client in real-time.
-- **Chat Persistence**: Saves all chat history, messages, and conversation context in Redis.
-- **Dynamic Title Generation**: Automatically creates a concise title for new conversations using a support model.
+- **Real-time Chat Streaming**: Uses Server-Sent Events (SSE) to stream responses.
+- **Chat Persistence**: Saves all chat history and messages in a local SQLite database. The database schema is designed to support message regeneration and conversation branching.
+- **Dynamic Title Generation**: Automatically creates a concise title for new conversations.
 - **Full Model Management**: Provides a complete API to list, pull, inspect, and delete Ollama models.
-- **Dynamic Generation Parameters**: Allows clients to specify LLM parameters (like temperature, system prompt) on a per-request basis.
-- **Response Metrics**: Captures and saves generation statistics (timing, token counts) for each assistant message.
+- **Dynamic Generation Parameters**: Allows clients to specify LLM parameters per-request.
 
 ## Configuration
 
 The service is configured through `config.json` and can be overridden by environment variables, which is the standard for Docker deployments.
 
-- `REDIS_ADDR`: The address of the Redis instance (e.g., `redis:6379`).
+- `DATABASE_PATH`: The path to the SQLite database file (e.g., `/app/data/flow.db`).
 - `OLLAMA_URL`: The base URL of the Ollama service (e.g., `http://ollama:11434`).
-
-## Running Locally
-
-While the primary method is using Docker Compose, you can run the backend as a standalone service for development.
-
-1.  Ensure you have Go installed and a Redis instance running.
-2.  Set the required environment variables:
-    ```sh
-    export REDIS_ADDR=localhost:6379
-    export OLLAMA_URL=http://localhost:11434
-    ```
-3.  Run the application from the `backend` directory:
-    ```sh
-    go run ./cmd/server/main.go
-    ```

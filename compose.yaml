@@ -13,7 +13,6 @@ services:
       - flow-network
     depends_on:
       - backend
-      - ollama
     restart: unless-stopped
 
   backend:
@@ -25,33 +24,24 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - REDIS_ADDR=redis:6379
+      - DATABASE_PATH=/app/data/flow.db
       - OLLAMA_URL=http://ollama:11434
       - INITIAL_SYSTEM_PROMPT=You are a helpful assistant.
-      - INITIAL_MAIN_MODEL=qwen3:0.6b
-      - INITIAL_SUPPORT_MODEL=qwen3:0.6b
     volumes:
-      - uploads:/app/uploads
+      - flow_data:/app/data
     networks:
       - flow-network
     depends_on:
-      - redis
+      - ollama
     restart: unless-stopped
-
-  redis:
-    image: redis/redis-stack:latest
-    container_name: flow_redis
-    networks:
-      - flow-network
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-
+  
   ollama:
     image: ollama/ollama
     container_name: flow_ollama
     ports:
       - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
     volumes:
       - ollama:/root/.ollama 
     networks:
@@ -70,7 +60,6 @@ networks:
     driver: bridge
 
 volumes:
-  redis_data:
-  uploads:
+  flow_data: {}
   ollama:
     external: true

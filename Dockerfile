@@ -19,10 +19,11 @@ RUN npm run build
 FROM golang:1.22-alpine AS builder-backend
 WORKDIR /src
 
+RUN apk add --no-cache build-base
+
 # Copy Go module files
 COPY backend/go.mod backend/go.sum ./
 
-# THIS IS THE FIX: 'go mod tidy' ensures go.sum is correct inside the container
 # It makes the build process more robust.
 RUN go mod tidy
 
@@ -32,8 +33,7 @@ RUN go mod download
 # Copy the rest of the backend source code
 COPY backend/ ./
 
-# Build the Go application
-RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /app/server ./cmd/server
+RUN go build -ldflags="-w -s" -o /app/server ./cmd/server
 
 
 # =================================================================
