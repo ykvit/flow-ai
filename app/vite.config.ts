@@ -15,7 +15,7 @@ export default defineConfig({
       },
       // backend
       '/backend-api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:8000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/backend-api/, '/api'),
       },
