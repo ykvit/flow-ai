@@ -1,0 +1,38 @@
+.messagesArea {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+
+}
+  .messageBubble {
+    padding: 12px 18px;
+    border-radius: 20px;
+    max-width: 75%;
+    word-wrap: break-word;
+    line-height: 1.5;
+    font-size: 0.95em;
+    position: relative;
+  }
+  
+  .messageBubble p {
+      margin: 0;
+      white-space: pre-wrap;
+  }
+  
+  .user { 
+    background-color: var(--user-bubble-bg);
+    color: var(--text-color);
+    align-self: flex-end;
+    border-bottom-right-radius: 5px;
+  }
+  
+  .ai { 
+    background-color: var(--ai-bubble-bg);
+    color: var(--text-color);
+    align-self: flex-start;
+    border-bottom-left-radius: 5px;
+  }
+  
