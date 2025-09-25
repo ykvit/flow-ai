@@ -14,6 +14,15 @@ import (
 	"flow-ai/backend/internal/service"
 )
 
+// @title           Flow-AI Backend API
+// @version         0.1
+// @description     This is the API server for the Flow-AI application, providing endpoints for chat, model management, and settings.
+// @contact.name    API Support
+// @contact.url     https://github.com/ykvit/flow-ai
+// @license.name    MIT
+// @license.url     https://opensource.org/licenses/MIT
+// @BasePath        /api
+
 func main() {
 	bootstrapCfg, err := config.LoadBootstrapConfig()
 	if err != nil {

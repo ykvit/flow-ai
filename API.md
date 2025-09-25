@@ -1,6 +1,7 @@
 # Flow-AI Backend API Documentation
 
-This document provides a complete specification for the Flow-AI backend API.
+**Note:** This document provides a high-level overview of the API. For a complete, interactive, and always up-to-date specification, please refer to our **[Swagger UI Documentation](/swagger/index.html)** (available when the server is running).
+
 
 **Base URL:** `/api`
 **Real-time Communication:** Endpoints that provide continuous updates use Server-Sent Events (SSE) and have a content type of `text/event-stream`.

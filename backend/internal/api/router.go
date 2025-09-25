@@ -6,9 +6,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	
+	// Import the generated docs folder
+	_ "flow-ai/backend/docs"
+	// Import the swagger wrapper
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-// The router now accepts both handlers
+
 func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -16,6 +21,10 @@ func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+
+	// NEW: Add a route for the Swagger documentation UI.
+	// This will serve the interactive API documentation.
+	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	// Group for routes that should have a timeout
 	r.Group(func(r chi.Router) {
@@ -30,7 +39,6 @@ func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 			r.Get("/chats", chatHandler.GetChats)
 			r.Get("/chats/{chatID}", chatHandler.GetChat)
 			r.Put("/chats/{chatID}/title", chatHandler.UpdateChatTitle)
-			// This is the new route for deleting a chat
 			r.Delete("/chats/{chatID}", chatHandler.HandleDeleteChat)
 			
 			// --- Models ---
@@ -42,9 +50,7 @@ func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 
 	// Group for long-running streaming routes that should NOT have a timeout
 	r.Group(func(r chi.Router) {
-		// Chat streaming
 		r.Post("/api/chats/messages", chatHandler.HandleStreamMessage)
-		// Model pull streaming
 		r.Post("/api/models/pull", modelHandler.HandlePullModel)
 	})
 
