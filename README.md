@@ -1,3 +1,7 @@
+# Flow-AI: An Open-Source WebUI for LLMs
+
+Flow-AI is a powerful, self-hostable, and user-friendly web interface for interacting with local Large Language Models (LLMs) through Ollama. It is designed to be a lightweight and feature-rich alternative to other popular WebUIs.
+
 ## ✨ Core Features
 
 - **Real-time Chat:** Get streaming responses from your local models instantly.
