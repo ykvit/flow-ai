@@ -1,0 +1,763 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is the API server for the Flow-AI application, providing endpoints for chat, model management, and settings.",
+        "title": "Flow-AI Backend API",
+        "contact": {
+            "name": "API Support",
+            "url": "https://github.com/ykvit/flow-ai"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "0.1"
+    },
+    "basePath": "/api",
+    "paths": {
+        "/chats": {
+            "get": {
+                "description": "Retrieves a list of all chats for the user, sorted by the most recently updated.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "List all chats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Chat"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chats/messages": {
+            "post": {
+                "description": "Sends a new message and initiates a real-time stream of the assistant's response. If chat_id is omitted, a new chat is created. The response is a server-sent event stream.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Create a message (and stream response)",
+                "parameters": [
+                    {
+                        "description": "Message Request",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.CreateMessageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Stream of response chunks",
+                        "schema": {
+                            "$ref": "#/definitions/model.StreamResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Sent as a stream error event",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chats/{chatID}": {
+            "get": {
+                "description": "Retrieves the full history and metadata for a single chat's active branch.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Get a single chat",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chat ID",
+                        "name": "chatID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.FullChat"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Permanently deletes a chat and all its associated messages.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Delete a chat",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chat ID",
+                        "name": "chatID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chats/{chatID}/title": {
+            "put": {
+                "description": "Manually renames a chat.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Update a chat's title",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chat ID",
+                        "name": "chatID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New title",
+                        "name": "title",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.UpdateTitleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/models": {
+            "get": {
+                "description": "Gets a list of all models available locally in Ollama.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Models"
+                ],
+                "summary": "List local models",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/llm.ListModelsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes a model from the local Ollama storage.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Models"
+                ],
+                "summary": "Delete a local model",
+                "parameters": [
+                    {
+                        "description": "Model Name to Delete",
+                        "name": "modelRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/llm.DeleteModelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/models/pull": {
+            "post": {
+                "description": "Downloads a model from the Ollama registry. This is a streaming endpoint.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Models"
+                ],
+                "summary": "Pull a new model",
+                "parameters": [
+                    {
+                        "description": "Model Name to Pull",
+                        "name": "modelRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/llm.PullModelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Stream of progress status",
+                        "schema": {
+                            "$ref": "#/definitions/llm.PullStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Sent as a stream error event",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/models/show": {
+            "post": {
+                "description": "Retrieves detailed information about a specific model, including its Modelfile and parameters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Models"
+                ],
+                "summary": "Show model info",
+                "parameters": [
+                    {
+                        "description": "Model Name",
+                        "name": "modelRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/llm.ShowModelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/llm.ModelInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/settings": {
+            "get": {
+                "description": "Retrieves the current global settings for the application, such as the default model.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Get application settings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/service.Settings"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Updates the global settings. The models specified must be available in Ollama.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Update application settings",
+                "parameters": [
+                    {
+                        "description": "New settings to apply",
+                        "name": "settings",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.Settings"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "api.UpdateTitleRequest": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "llm.DeleteModelRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "llm.ListModelsResponse": {
+            "type": "object",
+            "properties": {
+                "models": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/llm.Model"
+                    }
+                }
+            }
+        },
+        "llm.Model": {
+            "type": "object",
+            "properties": {
+                "modified_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "llm.ModelInfo": {
+            "type": "object",
+            "properties": {
+                "modelfile": {
+                    "type": "string"
+                },
+                "parameters": {
+                    "type": "string"
+                },
+                "template": {
+                    "type": "string"
+                }
+            }
+        },
+        "llm.PullModelRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "stream": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "llm.PullStatus": {
+            "type": "object",
+            "properties": {
+                "completed": {
+                    "type": "integer"
+                },
+                "digest": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "llm.RequestOptions": {
+            "type": "object",
+            "properties": {
+                "repeat_penalty": {
+                    "type": "number"
+                },
+                "seed": {
+                    "type": "integer"
+                },
+                "system": {
+                    "type": "string"
+                },
+                "temperature": {
+                    "type": "number"
+                },
+                "top_k": {
+                    "type": "integer"
+                },
+                "top_p": {
+                    "type": "number"
+                }
+            }
+        },
+        "llm.ShowModelRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Chat": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2025-09-08T14:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "4b3b5a34-571f-47e3-abd1-a7dbee9d92fe"
+                },
+                "model": {
+                    "type": "string",
+                    "example": "qwen:0.5b"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "History of the Roman Empire"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2025-09-08T14:05:00Z"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "default-user"
+                }
+            }
+        },
+        "model.FullChat": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2025-09-08T14:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "4b3b5a34-571f-47e3-abd1-a7dbee9d92fe"
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Message"
+                    }
+                },
+                "model": {
+                    "type": "string",
+                    "example": "qwen:0.5b"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "History of the Roman Empire"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2025-09-08T14:05:00Z"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "default-user"
+                }
+            }
+        },
+        "model.Message": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "example": "The Roman Empire fell in 476 AD."
+                },
+                "id": {
+                    "type": "string",
+                    "example": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "model": {
+                    "type": "string",
+                    "example": "qwen:0.5b"
+                },
+                "parent_id": {
+                    "type": "string",
+                    "example": "f0e9d8c7-b6a5-4321-fedc-ba9876543210"
+                },
+                "role": {
+                    "type": "string",
+                    "example": "assistant"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2025-09-08T14:05:00Z"
+                }
+            }
+        },
+        "model.StreamResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "example": "Hello"
+                },
+                "context": {
+                    "type": "object"
+                },
+                "done": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.CreateMessageRequest": {
+            "type": "object",
+            "properties": {
+                "chat_id": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "options": {
+                    "$ref": "#/definitions/llm.RequestOptions"
+                },
+                "support_model": {
+                    "type": "string"
+                },
+                "system_prompt": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.Settings": {
+            "type": "object",
+            "properties": {
+                "main_model": {
+                    "type": "string"
+                },
+                "support_model": {
+                    "type": "string"
+                },
+                "system_prompt": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

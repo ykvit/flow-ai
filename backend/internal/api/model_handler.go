@@ -18,6 +18,14 @@ func NewModelHandler(svc *service.ModelService) *ModelHandler {
 	return &ModelHandler{service: svc}
 }
 
+// HandleListModels godoc
+// @Summary      List local models
+// @Description  Gets a list of all models available locally in Ollama.
+// @Tags         Models
+// @Produce      json
+// @Success      200  {object}  llm.ListModelsResponse
+// @Failure      500  {object}  map[string]string
+// @Router       /models [get]
 func (h *ModelHandler) HandleListModels(w http.ResponseWriter, r *http.Request) {
 	models, err := h.service.List(r.Context())
 	if err != nil {
@@ -27,6 +35,17 @@ func (h *ModelHandler) HandleListModels(w http.ResponseWriter, r *http.Request) 
 	respondWithJSON(w, http.StatusOK, models)
 }
 
+// HandleShowModel godoc
+// @Summary      Show model info
+// @Description  Retrieves detailed information about a specific model, including its Modelfile and parameters.
+// @Tags         Models
+// @Accept       json
+// @Produce      json
+// @Param        modelRequest  body  llm.ShowModelRequest  true  "Model Name"
+// @Success      200           {object}  llm.ModelInfo
+// @Failure      400           {object}  map[string]string
+// @Failure      404           {object}  map[string]string
+// @Router       /models/show [post]
 func (h *ModelHandler) HandleShowModel(w http.ResponseWriter, r *http.Request) {
 	var req llm.ShowModelRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -41,6 +60,17 @@ func (h *ModelHandler) HandleShowModel(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, info)
 }
 
+// HandleDeleteModel godoc
+// @Summary      Delete a local model
+// @Description  Deletes a model from the local Ollama storage.
+// @Tags         Models
+// @Accept       json
+// @Produce      json
+// @Param        modelRequest  body  llm.DeleteModelRequest  true  "Model Name to Delete"
+// @Success      200           {object}  map[string]string
+// @Failure      400           {object}  map[string]string
+// @Failure      500           {object}  map[string]string
+// @Router       /models [delete]
 func (h *ModelHandler) HandleDeleteModel(w http.ResponseWriter, r *http.Request) {
 	var req llm.DeleteModelRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -54,7 +84,16 @@ func (h *ModelHandler) HandleDeleteModel(w http.ResponseWriter, r *http.Request)
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// HandlePullModel streams the download progress of a model.
+// HandlePullModel godoc
+// @Summary      Pull a new model
+// @Description  Downloads a model from the Ollama registry. This is a streaming endpoint.
+// @Tags         Models
+// @Accept       json
+// @Produce      text/event-stream
+// @Param        modelRequest  body  llm.PullModelRequest  true  "Model Name to Pull"
+// @Success      200           {object}  llm.PullStatus "Stream of progress status"
+// @Failure      400           {object}  map[string]string "Sent as a stream error event"
+// @Router       /models/pull [post]
 func (h *ModelHandler) HandlePullModel(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -69,7 +108,6 @@ func (h *ModelHandler) HandlePullModel(w http.ResponseWriter, r *http.Request) {
 
 	streamChan := make(chan llm.PullStatus)
 	
-	// FIX: The goroutine is now only responsible for writing to the channel.
 	// The main function will handle closing it, preventing a double-close panic.
 	go func() {
 		err := h.service.Pull(r.Context(), &req, streamChan)
