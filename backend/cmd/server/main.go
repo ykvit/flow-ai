@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"flow-ai/backend/internal/api"
@@ -24,35 +26,39 @@ import (
 // @BasePath        /api
 
 func main() {
+	setupLogger()
+
 	bootstrapCfg, err := config.LoadBootstrapConfig()
 	if err != nil {
-		log.Fatalf("Failed to load bootstrap configuration: %v", err)
+		slog.Error("Failed to load bootstrap configuration", "error", err)
+		os.Exit(1)
 	}
 
 	waitForOllama(bootstrapCfg.OllamaURL)
 
 	db, err := database.InitDB(bootstrapCfg.DatabasePath)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		slog.Error("Failed to initialize database", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
-	log.Println("Successfully connected to SQLite database.")
+	slog.Info("Successfully connected to SQLite database.")
 
 	repo := repository.NewSQLiteRepository(db)
 	ollamaProvider := llm.NewOllamaProvider(bootstrapCfg.OllamaURL)
-	
+
 	settingsService := service.NewSettingsService(db, ollamaProvider)
-	
-	// The service now discovers settings or creates them dynamically.
+
 	appSettings, err := settingsService.InitAndGet(context.Background(), bootstrapCfg.SystemPrompt)
 	if err != nil {
-		log.Fatalf("Failed to initialize application settings: %v", err)
+		slog.Error("Failed to initialize application settings", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("Loaded application settings. Main model is: '%s'", appSettings.MainModel)
+	slog.Info("Loaded application settings", "main_model", appSettings.MainModel)
 
 	chatService := service.NewChatService(repo, ollamaProvider, settingsService)
 	modelService := service.NewModelService(ollamaProvider)
-	
+
 	chatHandler := api.NewChatHandler(chatService, settingsService)
 	modelHandler := api.NewModelHandler(modelService)
 	router := api.NewRouter(chatHandler, modelHandler)
@@ -62,29 +68,53 @@ func main() {
 		Handler:           router,
 		ReadHeaderTimeout: 20 * time.Second,
 		WriteTimeout:      0,
-		IdleTimeout:       120 * time.Second, 
+		IdleTimeout:       120 * time.Second,
 	}
 
-	log.Println("Starting server on port 8000...")
+	slog.Info("Starting server", "port", 8000)
 	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		slog.Error("Failed to start server", "error", err)
+		os.Exit(1)
 	}
 }
 
+// setupLogger configures the global logger for structured JSON logging.
+// The log level can be controlled via the LOG_LEVEL environment variable.
+func setupLogger() {
+	var level slog.Level
+	switch strings.ToUpper(os.Getenv("LOG_LEVEL")) {
+	case "DEBUG":
+		level = slog.LevelDebug
+	case "INFO":
+		level = slog.LevelInfo
+	case "WARN":
+		level = slog.LevelWarn
+	case "ERROR":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: level,
+	}))
+	slog.SetDefault(logger)
+}
+
 func waitForOllama(ollamaURL string) {
-	log.Println("Waiting for Ollama to be ready...")
+	slog.Info("Waiting for Ollama to be ready...")
 	client := &http.Client{Timeout: 2 * time.Second}
 	for {
 		resp, err := client.Get(ollamaURL)
 		if err == nil && resp.StatusCode == http.StatusOK {
 			resp.Body.Close()
-			log.Println("Ollama is ready.")
+			slog.Info("Ollama is ready.")
 			return
 		}
 		if resp != nil {
 			resp.Body.Close()
 		}
-		log.Println("Ollama not ready yet, retrying in 3 seconds...")
+		slog.Debug("Ollama not ready yet, retrying in 3 seconds...")
 		time.Sleep(3 * time.Second)
 	}
 }
