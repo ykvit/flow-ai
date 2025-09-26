@@ -3,7 +3,7 @@
 
 This directory contains the Go backend service for the Flow-AI application. It acts as a robust API server that handles all business logic, communicates with the Ollama service for AI generation, and uses **SQLite** for data persistence.
 
-For a high-level overview of the project's architecture, please see the main [Architecture Documentation](../../DOCUMENTATION.md).
+For a high-level overview of the project's architecture, please see the main [Architecture Documentation](../DOCUMENTATION.md).
 
 ## Project Structure
 

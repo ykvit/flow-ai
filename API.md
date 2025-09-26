@@ -1,6 +1,6 @@
 # Flow-AI Backend API Documentation
 
-**Note:** This document provides a high-level overview of the API. For a complete, interactive, and always up-to-date specification, please refer to our **[Swagger UI Documentation](/swagger/index.html)** (available when the server is running).
+**Note:** This document provides a high-level overview of the API. For a complete, interactive, and always up-to-date specification, please refer to our **[Swagger UI Documentation](http://localhost:8000/swagger/index.html)** (available when the server is running).
 
 
 **Base URL:** `/api`
