@@ -3,8 +3,9 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+
 	"flow-ai/backend/internal/model"
 	"flow-ai/backend/internal/service"
 
@@ -64,7 +65,7 @@ func (h *ChatHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Settings updated.")
+	slog.Info("Settings updated.")
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -122,7 +123,7 @@ func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request
 
 	var req service.CreateMessageRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Error decoding request body: %v", err)
+		slog.Error("Error decoding request body", "error", err)
 		sendStreamError(w, "Invalid request body")
 		return
 	}
@@ -132,7 +133,7 @@ func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request
 
 	for chunk := range streamChan {
 		if r.Context().Err() != nil {
-			log.Println("Client disconnected.")
+			slog.Info("Client disconnected.")
 			break
 		}
 		jsonData, _ := json.Marshal(chunk)
@@ -142,10 +143,10 @@ func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	log.Println("Finished streaming response.")
+	slog.Debug("Finished streaming response.")
 }
 
-// NEW: HandleRegenerateMessage handles the streaming request to regenerate a response.
+// HandleRegenerateMessage godoc
 // @Summary      Regenerate a message
 // @Description  Creates a new response for a previous user prompt, creating a new branch in the conversation.
 // @Tags         Chats
@@ -178,7 +179,7 @@ func (h *ChatHandler) HandleRegenerateMessage(w http.ResponseWriter, r *http.Req
 
 	for chunk := range streamChan {
 		if r.Context().Err() != nil {
-			log.Println("Client disconnected during regeneration.")
+			slog.Info("Client disconnected during regeneration.")
 			break
 		}
 		jsonData, _ := json.Marshal(chunk)
@@ -188,8 +189,10 @@ func (h *ChatHandler) HandleRegenerateMessage(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	log.Println("Finished streaming regenerated response.")
+	slog.Debug("Finished streaming regenerated response.")
 }
+
+// --- Title and Chat Deletion Handlers ---
 
 // UpdateTitleRequest is the structure for the manual title update request.
 type UpdateTitleRequest struct {
@@ -245,12 +248,14 @@ func (h *ChatHandler) HandleDeleteChat(w http.ResponseWriter, r *http.Request) {
 // --- Helper Functions ---
 
 func respondWithError(w http.ResponseWriter, code int, message string) {
+	slog.Warn("Responding with error", "code", code, "message", message)
 	respondWithJSON(w, code, map[string]string{"error": message})
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	response, err := json.Marshal(payload)
 	if err != nil {
+		slog.Error("Failed to marshal JSON response", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Internal server error"))
 		return
@@ -261,6 +266,7 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 }
 
 func sendStreamError(w http.ResponseWriter, message string) {
+	slog.Warn("Sending stream error", "message", message)
 	errorPayload := map[string]string{"error": message}
 	jsonData, _ := json.Marshal(errorPayload)
 	fmt.Fprintf(w, "event: error\ndata: %s\n\n", string(jsonData))
