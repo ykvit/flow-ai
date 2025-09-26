@@ -20,13 +20,14 @@ type Repository interface {
 
 	// Message operations
 	AddMessage(ctx context.Context, message *model.Message, chatID string) error
-	GetMessageByID(ctx context.Context, messageID string) (*model.Message, error) // NEW
+	GetMessageByID(ctx context.Context, messageID string) (*model.Message, error)
 	GetActiveMessagesByChatID(ctx context.Context, chatID string) ([]model.Message, error)
 	GetLastActiveMessage(ctx context.Context, chatID string) (*model.Message, error)
 	UpdateMessageContext(ctx context.Context, messageID string, ollamaContext []byte) error
 
 	// Transactional operations
-	AddMessageTx(ctx context.Context, tx *sql.Tx, message *model.Message, chatID string) error // NEW
-	DeactivateBranchTx(ctx context.Context, tx *sql.Tx, messageID string) error                  // NEW
-	UpdateChatTimestampTx(ctx context.Context, tx *sql.Tx, chatID string) error                   // NEW
+	AddMessageTx(ctx context.Context, tx *sql.Tx, message *model.Message, chatID string) error
+	DeactivateBranchTx(ctx context.Context, tx *sql.Tx, messageID string) error
+	UpdateChatTimestampTx(ctx context.Context, tx *sql.Tx, chatID string) error
+	GetActiveMessagesByChatIDTx(ctx context.Context, tx *sql.Tx, chatID string) ([]model.Message, error)
 }

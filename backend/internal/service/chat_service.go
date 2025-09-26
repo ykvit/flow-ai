@@ -33,7 +33,7 @@ type CreateMessageRequest struct {
 	Options      *llm.RequestOptions `json:"options,omitempty"`
 }
 
-// NEW: RegenerateMessageRequest is the DTO for regenerating a message.
+// RegenerateMessageRequest is the DTO for regenerating a message.
 type RegenerateMessageRequest struct {
 	ChatID       string             `json:"chat_id"` // Included for context
 	Model        string             `json:"model"`
@@ -41,15 +41,14 @@ type RegenerateMessageRequest struct {
 	Options      *llm.RequestOptions `json:"options,omitempty"`
 }
 
-
 func NewChatService(repo repository.Repository, llm llm.LLMProvider, settingsService *SettingsService) *ChatService {
 	return &ChatService{repo: repo, llm: llm, settingsService: settingsService}
 }
 
 func (s *ChatService) UpdateChatTitle(ctx context.Context, chatID, newTitle string) error {
-    if newTitle == "" {
-        return fmt.Errorf("title cannot be empty")
-    }
+	if newTitle == "" {
+		return fmt.Errorf("title cannot be empty")
+	}
 	log.Printf("Manually updating title for chat %s to '%s'", chatID, newTitle)
 	return s.repo.UpdateChatTitle(ctx, chatID, newTitle)
 }
@@ -65,16 +64,19 @@ func (s *ChatService) ListChats(ctx context.Context, userID string) ([]*model.Ch
 
 func (s *ChatService) GetFullChat(ctx context.Context, chatID string) (*model.FullChat, error) {
 	chat, err := s.repo.GetChat(ctx, chatID)
-	if err != nil { return nil, fmt.Errorf("could not get chat: %w", err) }
-	
+	if err != nil {
+		return nil, fmt.Errorf("could not get chat: %w", err)
+	}
+
 	messages, err := s.repo.GetActiveMessagesByChatID(ctx, chatID)
-	if err != nil { return nil, fmt.Errorf("could not get messages: %w", err) }
+	if err != nil {
+		return nil, fmt.Errorf("could not get messages: %w", err)
+	}
 
 	return &model.FullChat{Chat: *chat, Messages: messages}, nil
 }
 
 func (s *ChatService) resolveModels(ctx context.Context, req *CreateMessageRequest, currentSettings *Settings) (mainModel, supportModel, systemPrompt string, err error) {
-	// ... (без змін)
 	mainModel = req.Model
 	if mainModel == "" {
 		mainModel = currentSettings.MainModel
@@ -84,7 +86,9 @@ func (s *ChatService) resolveModels(ctx context.Context, req *CreateMessageReque
 			log.Printf("WARN: Could not list models to validate request model '%s': %v", mainModel, err)
 		} else {
 			modelNames := make([]string, len(availableModels.Models))
-			for i, m := range availableModels.Models { modelNames[i] = m.Name }
+			for i, m := range availableModels.Models {
+				modelNames[i] = m.Name
+			}
 			if !slices.Contains(modelNames, mainModel) {
 				return "", "", "", fmt.Errorf("model '%s' specified in request is not available", mainModel)
 			}
@@ -96,27 +100,26 @@ func (s *ChatService) resolveModels(ctx context.Context, req *CreateMessageReque
 	}
 
 	supportModel = req.SupportModel
-	if supportModel == "" { 
-		supportModel = currentSettings.SupportModel 
+	if supportModel == "" {
+		supportModel = currentSettings.SupportModel
 	}
 
 	systemPrompt = req.SystemPrompt
-	if systemPrompt == "" { 
-		systemPrompt = currentSettings.SystemPrompt 
+	if systemPrompt == "" {
+		systemPrompt = currentSettings.SystemPrompt
 	}
-    if req.Options != nil && req.Options.System != nil { 
-		systemPrompt = *req.Options.System 
+	if req.Options != nil && req.Options.System != nil {
+		systemPrompt = *req.Options.System
 	}
+
 	return mainModel, supportModel, systemPrompt, nil
 }
-
 
 func (s *ChatService) HandleNewMessage(
 	ctx context.Context,
 	req *CreateMessageRequest,
 	streamChan chan<- model.StreamResponse,
 ) {
-	// ... (без змін)
 	defer close(streamChan)
 
 	currentSettings, err := s.settingsService.Get(ctx)
@@ -131,10 +134,10 @@ func (s *ChatService) HandleNewMessage(
 		streamChan <- model.StreamResponse{Error: err.Error()}
 		return
 	}
-	
+
 	isNewChat := req.ChatID == ""
 	chatID := req.ChatID
-	
+
 	if isNewChat {
 		chatID = uuid.NewString()
 		chat := &model.Chat{ID: chatID, UserID: "default-user", Title: truncate(req.Content, 50), Model: modelToUse, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
@@ -146,8 +149,10 @@ func (s *ChatService) HandleNewMessage(
 	}
 
 	lastMessage, err := s.repo.GetLastActiveMessage(ctx, chatID)
-	if err != nil { log.Printf("Error getting last message for chat %s: %v", chatID, err) }
-	
+	if err != nil {
+		log.Printf("Error getting last message for chat %s: %v", chatID, err)
+	}
+
 	var parentID *string
 	var ollamaContext json.RawMessage
 	if lastMessage != nil {
@@ -156,18 +161,20 @@ func (s *ChatService) HandleNewMessage(
 	}
 
 	userMessage := &model.Message{ID: uuid.NewString(), ParentID: parentID, Role: "user", Content: req.Content, Timestamp: time.Now().UTC()}
-	if err := s.repo.AddMessage(ctx, userMessage, chatID); err != nil { 
-		log.Printf("Error adding user message to chat %s: %v", chatID, err) 
+	if err := s.repo.AddMessage(ctx, userMessage, chatID); err != nil {
+		log.Printf("Error adding user message to chat %s: %v", chatID, err)
 	}
 
 	history, err := s.repo.GetActiveMessagesByChatID(ctx, chatID)
-	if err != nil { log.Printf("Error getting message history for chat %s: %v", chatID, err) }
-	
+	if err != nil {
+		log.Printf("Error getting message history for chat %s: %v", chatID, err)
+	}
+
 	llmMessages := []llm.Message{{Role: "system", Content: systemPromptToUse}}
 	for _, msg := range history {
 		llmMessages = append(llmMessages, llm.Message{Role: msg.Role, Content: msg.Content})
 	}
-	
+
 	llmReq := &llm.GenerateRequest{
 		Model:    modelToUse,
 		Messages: llmMessages,
@@ -180,12 +187,14 @@ func (s *ChatService) HandleNewMessage(
 	var finalStats *llm.GenerationStats
 	llmStreamChan := make(chan llm.StreamResponse)
 	go s.llm.GenerateStream(ctx, llmReq, llmStreamChan)
-	
+
 	for chunk := range llmStreamChan {
 		modelChunk := model.StreamResponse{Content: chunk.Content, Done: chunk.Done, Context: chunk.Context, Error: chunk.Error}
 		streamChan <- modelChunk
-		
-		if chunk.Error != "" { break }
+
+		if chunk.Error != "" {
+			break
+		}
 		fullResponse.WriteString(chunk.Content)
 		if chunk.Done {
 			finalContext = chunk.Context
@@ -213,7 +222,7 @@ func (s *ChatService) HandleNewMessage(
 		log.Printf("CRITICAL: Failed to save assistant message to chat %s: %v", chatID, err)
 		return
 	}
-	
+
 	if finalContext != nil {
 		if err := s.repo.UpdateMessageContext(ctx, assistantMessage.ID, finalContext); err != nil {
 			log.Printf("Error setting Ollama context for message %s: %v", assistantMessage.ID, err)
@@ -225,7 +234,6 @@ func (s *ChatService) HandleNewMessage(
 	}
 }
 
-// NEW: RegenerateMessage handles the logic for regenerating an assistant's response.
 func (s *ChatService) RegenerateMessage(
 	ctx context.Context,
 	chatID string,
@@ -235,7 +243,6 @@ func (s *ChatService) RegenerateMessage(
 ) {
 	defer close(streamChan)
 
-	// 1. Get current settings to resolve models and system prompt
 	currentSettings, err := s.settingsService.Get(ctx)
 	if err != nil {
 		streamChan <- model.StreamResponse{Error: "Could not load application settings"}
@@ -243,37 +250,36 @@ func (s *ChatService) RegenerateMessage(
 	}
 
 	modelToUse := req.Model
-	if modelToUse == "" { modelToUse = currentSettings.MainModel }
+	if modelToUse == "" {
+		modelToUse = currentSettings.MainModel
+	}
 
 	systemPromptToUse := req.SystemPrompt
-	if systemPromptToUse == "" { systemPromptToUse = currentSettings.SystemPrompt }
+	if systemPromptToUse == "" {
+		systemPromptToUse = currentSettings.SystemPrompt
+	}
 
-	// 2. Start a transaction
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Printf("Regenerate failed to begin transaction: %v", err)
 		streamChan <- model.StreamResponse{Error: "Database error"}
 		return
 	}
-	defer tx.Rollback() // Rollback on any error
+	defer tx.Rollback()
 
-	// 3. Get the original assistant message to find its parent (the user prompt)
 	originalMsg, err := s.repo.GetMessageByID(ctx, originalAssistantMessageID)
 	if err != nil || originalMsg.Role != "assistant" || originalMsg.ParentID == nil {
 		streamChan <- model.StreamResponse{Error: "Original message not found or invalid"}
 		return
 	}
 
-	// 4. Deactivate the old branch starting from the original assistant message
 	if err := s.repo.DeactivateBranchTx(ctx, tx, originalAssistantMessageID); err != nil {
 		log.Printf("Regenerate failed to deactivate branch: %v", err)
 		streamChan <- model.StreamResponse{Error: "Database error during regeneration"}
 		return
 	}
-	
-	// 5. Get the active message history up to this point.
-	// Since we just deactivated the old branch, this will give us the correct history.
-	history, err := s.repo.GetActiveMessagesByChatID(ctx, chatID)
+
+	history, err := s.repo.GetActiveMessagesByChatIDTx(ctx, tx, chatID)
 	if err != nil {
 		log.Printf("Regenerate failed to get history: %v", err)
 		streamChan <- model.StreamResponse{Error: "Could not retrieve message history"}
@@ -284,18 +290,15 @@ func (s *ChatService) RegenerateMessage(
 	for _, msg := range history {
 		llmMessages = append(llmMessages, llm.Message{Role: msg.Role, Content: msg.Content})
 	}
-	
-	// 6. Generate a new response from the LLM
+
 	llmReq := &llm.GenerateRequest{
 		Model:    modelToUse,
 		Messages: llmMessages,
-		// We don't pass context here, as it belongs to a now-deactivated branch.
-		Options: req.Options,
+		Options:  req.Options,
 	}
 
-    // DEBUG LOGGING: Let's see the exact payload sent to Ollama
-    debugPayload, _ := json.MarshalIndent(llmReq, "", "  ")
-    log.Printf("--- Ollama Regeneration Payload ---\n%s\n---------------------------------", string(debugPayload))
+	debugPayload, _ := json.MarshalIndent(llmReq, "", "  ")
+	log.Printf("--- Ollama Regeneration Payload ---\n%s\n---------------------------------", string(debugPayload))
 
 	var fullResponse strings.Builder
 	var finalContext json.RawMessage
@@ -305,7 +308,9 @@ func (s *ChatService) RegenerateMessage(
 
 	for chunk := range llmStreamChan {
 		streamChan <- model.StreamResponse{Content: chunk.Content, Done: chunk.Done, Error: chunk.Error}
-		if chunk.Error != "" { return } // The transaction will be rolled back by defer
+		if chunk.Error != "" {
+			return
+		}
 		fullResponse.WriteString(chunk.Content)
 		if chunk.Done {
 			finalContext = chunk.Context
@@ -315,12 +320,13 @@ func (s *ChatService) RegenerateMessage(
 	log.Println("Finished streaming regenerated response.")
 
 	var metadata json.RawMessage
-	if finalStats != nil { metadata, _ = json.Marshal(finalStats) }
+	if finalStats != nil {
+		metadata, _ = json.Marshal(finalStats)
+	}
 
-	// 7. Save the new assistant message to the database
 	newAssistantMessage := &model.Message{
 		ID:        uuid.NewString(),
-		ParentID:  originalMsg.ParentID, // Crucially, points to the same user message
+		ParentID:  originalMsg.ParentID,
 		Role:      "assistant",
 		Content:   fullResponse.String(),
 		Model:     &modelToUse,
@@ -332,19 +338,17 @@ func (s *ChatService) RegenerateMessage(
 		log.Printf("CRITICAL: Failed to save regenerated message: %v", err)
 		return
 	}
-	
+
 	if err := s.repo.UpdateChatTimestampTx(ctx, tx, chatID); err != nil {
 		log.Printf("CRITICAL: Failed to update chat timestamp after regeneration: %v", err)
 		return
 	}
-	
-	// 8. Commit the transaction
+
 	if err := tx.Commit(); err != nil {
 		log.Printf("CRITICAL: Failed to commit regeneration transaction: %v", err)
 		return
 	}
 
-	// 9. Update the context for the new message (outside the transaction)
 	if finalContext != nil {
 		if err := s.repo.UpdateMessageContext(ctx, newAssistantMessage.ID, finalContext); err != nil {
 			log.Printf("Error setting Ollama context for new message %s: %v", newAssistantMessage.ID, err)
@@ -352,45 +356,83 @@ func (s *ChatService) RegenerateMessage(
 	}
 }
 
-
 func (s *ChatService) generateTitle(ctx context.Context, chatID, supportModel, userQuery, assistantResponse string) {
 	log.Printf("Generating title for chat %s...", chatID)
-	prompt := fmt.Sprintf(`Analyze the following conversation and generate a short, concise title (5 words max). Respond with ONLY a JSON object in the format {"title": "your generated title"}. Do not add any other text or explanations.
-	CONVERSATION: User: %s, Assistant: %s`, truncate(userQuery, 150), truncate(assistantResponse, 200))
+
+	prompt := fmt.Sprintf(
+		`Analyze the following conversation and generate a short, concise title (5 words max).
+		Respond with ONLY a JSON object in the format {"title": "your generated title"}. Do not add any other text or explanations.
+		
+		CONVERSATION:
+		User: %s
+		Assistant: %s`,
+		truncate(userQuery, 150),
+		truncate(assistantResponse, 200),
+	)
+
 	messages := []llm.Message{{Role: "user", Content: prompt}}
 	req := &llm.GenerateRequest{Model: supportModel, Messages: messages}
 	resp, err := s.llm.Generate(ctx, req)
-	if err != nil { log.Printf("Failed to generate title for chat %s: %v", chatID, err); return }
-    log.Printf("Raw title response for chat %s: '%s'", chatID, resp.Response)
+	if err != nil {
+		log.Printf("Failed to generate title for chat %s: %v", chatID, err)
+		return
+	}
+
+	log.Printf("Raw title response for chat %s: '%s'", chatID, resp.Response)
 	jsonString := extractJSON(resp.Response)
-	type TitleResponse struct { Title string `json:"title"` }
+	type TitleResponse struct {
+		Title string `json:"title"`
+	}
 	var titleResp TitleResponse
 	var newTitle string
+
 	if jsonString != "" {
 		if err := json.Unmarshal([]byte(jsonString), &titleResp); err != nil {
 			log.Printf("WARN: Found a JSON-like string but failed to parse for chat %s: %v", chatID, err)
 			newTitle = cleanRawTitle(resp.Response)
-		} else { newTitle = titleResp.Title }
+		} else {
+			newTitle = titleResp.Title
+		}
 	} else {
 		log.Printf("WARN: No JSON found in title response for chat %s. Cleaning raw response.", chatID)
 		newTitle = cleanRawTitle(resp.Response)
 	}
+
 	if trimmedTitle := strings.TrimSpace(newTitle); trimmedTitle != "" {
 		if err := s.repo.UpdateChatTitle(ctx, chatID, trimmedTitle); err != nil {
 			log.Printf("Failed to update chat %s with new title: %v", chatID, err)
-		} else { log.Printf("Successfully updated title for chat %s to: '%s'", chatID, trimmedTitle) }
+		} else {
+			log.Printf("Successfully updated title for chat %s to: '%s'", chatID, trimmedTitle)
+		}
 	}
 }
+
 func extractJSON(s string) string {
-	start := strings.Index(s, "{"); if start == -1 { return "" }
-	end := strings.LastIndex(s, "}"); if end == -1 || end < start { return "" }
+	start := strings.Index(s, "{")
+	if start == -1 {
+		return ""
+	}
+	end := strings.LastIndex(s, "}")
+	if end == -1 || end < start {
+		return ""
+	}
 	return s[start : end+1]
 }
+
 func cleanRawTitle(s string) string {
 	s = strings.Split(s, "<think>")[0]
-	s = strings.TrimPrefix(s, "```json"); s = strings.TrimSuffix(s, "```")
+	s = strings.TrimPrefix(s, "```json")
+	s = strings.TrimSuffix(s, "```")
 	return strings.Trim(s, ` "'\n\t`)
 }
+
 func truncate(s string, n int) string {
-	if len(s) <= n { return s }; runes := []rune(s); if len(runes) <= n { return s }; return string(runes[:n])
+	if len(s) <= n {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= n {
+		return s
+	}
+	return string(runes[:n])
 }

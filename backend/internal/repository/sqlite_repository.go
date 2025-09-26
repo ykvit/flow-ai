@@ -10,6 +10,13 @@ import (
 	"flow-ai/backend/internal/model"
 )
 
+// queryable is a helper interface that allows using both *sql.DB and *sql.Tx.
+// This helps to avoid code duplication for read operations.
+type queryable interface {
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+}
+
 type sqliteRepository struct {
 	db *sql.DB
 }
@@ -128,14 +135,25 @@ func (r *sqliteRepository) GetMessageByID(ctx context.Context, messageID string)
 	return &msg, nil
 }
 
+// GetActiveMessagesByChatID is the public non-transactional method.
 func (r *sqliteRepository) GetActiveMessagesByChatID(ctx context.Context, chatID string) ([]model.Message, error) {
+	return r.getActiveMessagesByChatID(ctx, r.db, chatID)
+}
+
+// GetActiveMessagesByChatIDTx is the public transactional method.
+func (r *sqliteRepository) GetActiveMessagesByChatIDTx(ctx context.Context, tx *sql.Tx, chatID string) ([]model.Message, error) {
+	return r.getActiveMessagesByChatID(ctx, tx, chatID)
+}
+
+// getActiveMessagesByChatID is a private helper that works with both *sql.DB and *sql.Tx.
+func (r *sqliteRepository) getActiveMessagesByChatID(ctx context.Context, q queryable, chatID string) ([]model.Message, error) {
 	query := `
 		SELECT id, parent_id, role, content, model, timestamp, metadata, context
 		FROM messages
 		WHERE chat_id = ? AND is_active = TRUE
 		ORDER BY timestamp ASC
 	`
-	rows, err := r.db.QueryContext(ctx, query, chatID)
+	rows, err := q.QueryContext(ctx, query, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -167,6 +185,7 @@ func (r *sqliteRepository) GetActiveMessagesByChatID(ctx context.Context, chatID
 	}
 	return messages, nil
 }
+
 
 func (r *sqliteRepository) GetLastActiveMessage(ctx context.Context, chatID string) (*model.Message, error) {
 	query := `
@@ -243,7 +262,6 @@ func (r *sqliteRepository) DeactivateBranchTx(ctx context.Context, tx *sql.Tx, m
 
 func (r *sqliteRepository) UpdateChatTimestampTx(ctx context.Context, tx *sql.Tx, chatID string) error {
 	query := "UPDATE chats SET updated_at = ? WHERE id = ?"
-	// THE FIX IS HERE: Added the missing chatID argument.
 	_, err := tx.ExecContext(ctx, query, time.Now().UTC(), chatID)
 	return err
 }
