@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
 	"flow-ai/backend/internal/llm"
 	"flow-ai/backend/internal/service"
 )
@@ -102,42 +103,49 @@ func (h *ModelHandler) HandlePullModel(w http.ResponseWriter, r *http.Request) {
 	var req llm.PullModelRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("Error decoding request body: %v", err)
-		fmt.Fprintf(w, "event: error\ndata: %s\n\n", `{"error": "Invalid request body"}`)
+		sendStreamError(w, "Invalid request body")
 		return
 	}
 
 	streamChan := make(chan llm.PullStatus)
 	
-	// The main function will handle closing it, preventing a double-close panic.
+	// REFACTORED: We start the service call in a goroutine.
+	// The service layer (or below) is responsible for closing the channel.
 	go func() {
 		err := h.service.Pull(r.Context(), &req, streamChan)
 		if err != nil {
-			log.Printf("Error during model pull service call: %v", err)
-			// Attempt to send a final error message if the channel is still open.
-			// This is not guaranteed to be received but is good practice.
-			select {
-			case streamChan <- llm.PullStatus{Error: err.Error()}:
-			case <-r.Context().Done():
-			}
+			log.Printf("Error from model pull service: %v", err)
+			// If an error happens before the stream even starts,
+			// the channel will be closed immediately and the loop below won't run.
+			// The client will just see the connection close. This is acceptable.
 		}
-		// The goroutine *never* closes the channel.
 	}()
 
-	// The main function loop now safely closes the channel once done.
-	defer func() {
-		close(streamChan)
-		log.Println("Finished streaming model pull and closed channel.")
-	}()
-
+	// This loop now safely reads from the channel until it's closed by the producer.
 	for chunk := range streamChan {
+		// Check if the client has disconnected.
 		if r.Context().Err() != nil {
 			log.Println("Client disconnected during model pull.")
-			break // Exit the loop, defer will close the channel.
+			break // Exit the loop.
 		}
-		jsonData, _ := json.Marshal(chunk)
+
+		if chunk.Error != "" {
+			log.Printf("Received an error in the pull stream: %s", chunk.Error)
+			// We can choose to forward this to the client as an error event if we want.
+			sendStreamError(w, chunk.Error)
+		}
+
+		jsonData, err := json.Marshal(chunk)
+		if err != nil {
+			log.Printf("Error marshalling pull status: %v", err)
+			continue // Skip this chunk
+		}
+
 		fmt.Fprintf(w, "data: %s\n\n", string(jsonData))
 		if flusher, ok := w.(http.Flusher); ok {
 			flusher.Flush()
 		}
 	}
+	
+	log.Println("Finished streaming model pull.")
 }

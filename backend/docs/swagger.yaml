@@ -172,6 +172,18 @@ definitions:
       system_prompt:
         type: string
     type: object
+  service.RegenerateMessageRequest:
+    properties:
+      chat_id:
+        description: Included for context
+        type: string
+      model:
+        type: string
+      options:
+        $ref: '#/definitions/llm.RequestOptions'
+      system_prompt:
+        type: string
+    type: object
   service.Settings:
     properties:
       main_model:
@@ -265,6 +277,51 @@ paths:
               type: string
             type: object
       summary: Get a single chat
+      tags:
+      - Chats
+  /chats/{chatID}/messages/{messageID}/regenerate:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new response for a previous user prompt, creating a new
+        branch in the conversation.
+      parameters:
+      - description: Chat ID
+        in: path
+        name: chatID
+        required: true
+        type: string
+      - description: The ID of the assistant message to regenerate
+        in: path
+        name: messageID
+        required: true
+        type: string
+      - description: Regeneration options
+        in: body
+        name: regenRequest
+        required: true
+        schema:
+          $ref: '#/definitions/service.RegenerateMessageRequest'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Stream of new response chunks
+          schema:
+            $ref: '#/definitions/model.StreamResponse'
+        "400":
+          description: Sent as a stream error event
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Sent as a stream error event
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Regenerate a message
       tags:
       - Chats
   /chats/{chatID}/title:

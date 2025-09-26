@@ -174,6 +174,72 @@ const docTemplate = `{
                 }
             }
         },
+        "/chats/{chatID}/messages/{messageID}/regenerate": {
+            "post": {
+                "description": "Creates a new response for a previous user prompt, creating a new branch in the conversation.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Regenerate a message",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chat ID",
+                        "name": "chatID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "The ID of the assistant message to regenerate",
+                        "name": "messageID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Regeneration options",
+                        "name": "regenRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.RegenerateMessageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Stream of new response chunks",
+                        "schema": {
+                            "$ref": "#/definitions/model.StreamResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Sent as a stream error event",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Sent as a stream error event",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/chats/{chatID}/title": {
             "put": {
                 "description": "Manually renames a chat.",
@@ -746,6 +812,24 @@ const docTemplate = `{
                 },
                 "support_model": {
                     "type": "string"
+                },
+                "system_prompt": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.RegenerateMessageRequest": {
+            "type": "object",
+            "properties": {
+                "chat_id": {
+                    "description": "Included for context",
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "options": {
+                    "$ref": "#/definitions/llm.RequestOptions"
                 },
                 "system_prompt": {
                     "type": "string"
