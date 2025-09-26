@@ -22,6 +22,13 @@ const (
 	composeFile = "compose.test.yaml"
 )
 
+// Helper type to represent a full chat from the API for testing.
+type fullChatTest struct {
+	ID       string        `json:"id"`
+	Title    string        `json:"title"`
+	Messages []interface{} `json:"messages"`
+}
+
 func TestMain(m *testing.M) {
 	log.Println("--- Setting up test environment ---")
 
@@ -63,7 +70,6 @@ func cleanup() {
 }
 
 func runCommand(cmd *exec.Cmd) error {
-    // This helper now finds the project root to run docker-compose from the correct directory.
 	projectRoot, err := getProjectRoot()
 	if err != nil {
 		return fmt.Errorf("could not find project root: %w", err)
@@ -107,16 +113,21 @@ func pullTestModel() error {
 	pullReq := map[string]string{"name": testModel}
 	body, _ := json.Marshal(pullReq)
 	resp, err := http.Post(baseAPIURL+"/models/pull", "application/json", bytes.NewBuffer(body))
-	if err != nil { return fmt.Errorf("failed to send pull request: %w", err) }
+	if err != nil {
+		return fmt.Errorf("failed to send pull request: %w", err)
+	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("model pull returned non-200 status: %d. Body: %s", resp.StatusCode, string(bodyBytes))
 	}
-	io.Copy(io.Discard, resp.Body)
-	return nil
-}
 
+	// Drain the response body to ensure the pull completes before moving on.
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+	}
+	return scanner.Err()
+}
 
 func TestFullChatWorkflow(t *testing.T) {
 	var chatID string
@@ -125,10 +136,14 @@ func TestFullChatWorkflow(t *testing.T) {
 	t.Run("CreateNewChat", func(t *testing.T) {
 		reqBody := fmt.Sprintf(`{"content": "%s", "model": "%s"}`, initialContent, testModel)
 		resp, err := http.Post(baseAPIURL+"/chats/messages", "application/json", strings.NewReader(reqBody))
-		if err != nil { t.Fatalf("Failed to create message: %v", err) }
+		if err != nil {
+			t.Fatalf("Failed to create message: %v", err)
+		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusOK { t.Fatalf("Expected status 200 for chat creation, got %d", resp.StatusCode) }
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected status 200 for chat creation, got %d", resp.StatusCode)
+		}
 
 		scanner := bufio.NewScanner(resp.Body)
 		foundDone := false
@@ -137,48 +152,63 @@ func TestFullChatWorkflow(t *testing.T) {
 			if strings.HasPrefix(line, "data:") {
 				if strings.Contains(line, `"done":true`) {
 					foundDone = true
-					break
 				}
 			}
 		}
-		if err := scanner.Err(); err != nil { t.Fatalf("Error reading stream: %v", err) }
-		if !foundDone { t.Fatal("Stream finished without a 'done:true' message") }
+		if err := scanner.Err(); err != nil {
+			t.Fatalf("Error reading stream: %v", err)
+		}
+		if !foundDone {
+			t.Fatal("Stream finished without a 'done:true' message")
+		}
 	})
 
-	t.Run("ListChatsAndWaitForTitle", func(t *testing.T) {
-		var chatFound bool
-		for i := 0; i < 20; i++ {
+	// FINAL REFACTOR: This step is now the single source of truth for waiting.
+	// It waits for BOTH the assistant message to be saved AND the title to be generated.
+	t.Run("WaitForChatCompletion", func(t *testing.T) {
+		var chatIsComplete bool
+		// Generous timeout to account for model loading and title generation.
+		for i := 0; i < 60; i++ { // Wait up to 30 seconds
 			resp, err := http.Get(baseAPIURL + "/chats")
-			if err != nil { t.Fatalf("Failed to list chats: %v", err) }
+			if err != nil {
+				t.Fatalf("Failed to list chats: %v", err)
+			}
 
 			var chats []map[string]interface{}
-			if err := json.NewDecoder(resp.Body).Decode(&chats); err != nil {
-				resp.Body.Close()
-				t.Fatalf("Failed to decode chats list: %v", err)
-			}
+			json.NewDecoder(resp.Body).Decode(&chats)
 			resp.Body.Close()
 
 			if len(chats) == 1 {
 				chatID = chats[0]["id"].(string)
-				title := chats[0]["title"].(string)
-				// Check if title has been updated from the initial content
-				if title != "" && title != truncate(initialContent, 50) {
-					log.Printf("Found new chat with ID: %s and generated Title: %s", chatID, title)
-					chatFound = true
+				chatResp, err := http.Get(baseAPIURL + "/chats/" + chatID)
+				if err != nil {
+					t.Fatalf("Failed to get chat by ID to check for completion: %v", err)
+				}
+
+				var fullChat fullChatTest
+				json.NewDecoder(chatResp.Body).Decode(&fullChat)
+				chatResp.Body.Close()
+
+				// The condition for success: 2 messages exist AND title is updated.
+				titleIsGenerated := fullChat.Title != "" && fullChat.Title != truncate(initialContent, 50)
+				if len(fullChat.Messages) == 2 && titleIsGenerated {
+					log.Printf("Chat %s is complete: 2 messages saved and title updated to '%s'.", chatID, fullChat.Title)
+					chatIsComplete = true
 					break
 				}
 			}
 			time.Sleep(500 * time.Millisecond) // Wait before retrying
 		}
 
-		if !chatFound {
-			t.Fatal("Timed out waiting for generated title. Chat was not found or title was not updated.")
+		if !chatIsComplete {
+			t.Fatal("Timed out waiting for the chat to be fully processed (assistant message and title).")
 		}
 	})
 
-	// ... The rest of the test functions remain the same
 	t.Run("GetChatByID", func(t *testing.T) {
-		if chatID == "" { t.Fatal("Chat ID not set from previous step") }
+		if chatID == "" {
+			t.Fatal("Chat ID not set from previous step")
+		}
 
 		resp, err := http.Get(baseAPIURL + "/chats/" + chatID)
 		if err != nil {
@@ -186,53 +216,79 @@ func TestFullChatWorkflow(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		var fullChat map[string]interface{}
+		var fullChat fullChatTest
 		if err := json.NewDecoder(resp.Body).Decode(&fullChat); err != nil {
 			t.Fatalf("Failed to decode full chat: %v", err)
 		}
-		messages, ok := fullChat["messages"].([]interface{})
-		if !ok || len(messages) < 2 {
-			t.Fatalf("Expected at least 2 messages in the chat, got %d", len(messages))
+
+		// This check is now simpler, as the previous step guaranteed completion.
+		if len(fullChat.Messages) < 2 {
+			t.Fatalf("Expected at least 2 messages in the chat, got %d", len(fullChat.Messages))
 		}
 	})
-    
+
 	t.Run("UpdateTitle", func(t *testing.T) {
-		if chatID == "" { t.Fatal("Chat ID not set from previous step") }
-		
+		if chatID == "" {
+			t.Fatal("Chat ID not set from previous step")
+		}
+
 		reqBody := `{"title": "Simple Math Question"}`
 		req, _ := http.NewRequest(http.MethodPut, baseAPIURL+"/chats/"+chatID+"/title", strings.NewReader(reqBody))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		resp, err := http.DefaultClient.Do(req)
-		if err != nil { t.Fatalf("Failed to update title: %v", err) }
+		if err != nil {
+			t.Fatalf("Failed to update title: %v", err)
+		}
 		defer resp.Body.Close()
-		
-		if resp.StatusCode != http.StatusOK { t.Fatalf("Expected status 200 for title update, got %d", resp.StatusCode) }
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected status 200 for title update, got %d", resp.StatusCode)
+		}
 	})
 
 	t.Run("DeleteChat", func(t *testing.T) {
-		if chatID == "" { t.Fatal("Chat ID not set from previous step") }
+		if chatID == "" {
+			t.Fatal("Chat ID not set from previous step")
+		}
 
 		req, _ := http.NewRequest(http.MethodDelete, baseAPIURL+"/chats/"+chatID, nil)
 		resp, err := http.DefaultClient.Do(req)
-		if err != nil { t.Fatalf("Failed to delete chat: %v", err) }
+		if err != nil {
+			t.Fatalf("Failed to delete chat: %v", err)
+		}
 		defer resp.Body.Close()
-		
-		if resp.StatusCode != http.StatusOK { t.Fatalf("Expected status 200 for chat deletion, got %d", resp.StatusCode) }
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected status 200 for chat deletion, got %d", resp.StatusCode)
+		}
 	})
 
 	t.Run("VerifyDeletion", func(t *testing.T) {
 		resp, err := http.Get(baseAPIURL + "/chats")
-		if err != nil { t.Fatalf("Failed to list chats after deletion: %v", err) }
+		if err != nil {
+			t.Fatalf("Failed to list chats after deletion: %v", err)
+		}
 		defer resp.Body.Close()
 
 		var chats []map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&chats); err != nil { t.Fatalf("Failed to decode chats list: %v", err) }
-		if len(chats) != 0 { t.Fatalf("Expected 0 chats after deletion, got %d", len(chats)) }
+		if err := json.NewDecoder(resp.Body).Decode(&chats); err != nil {
+			t.Fatalf("Failed to decode chats list: %v", err)
+		}
+		if len(chats) != 0 {
+			t.Fatalf("Expected 0 chats after deletion, got %d", len(chats))
+		}
 	})
 }
 
 // Copied from chat_service for the test
 func truncate(s string, n int) string {
-	if len(s) <= n { return s }; runes := []rune(s); if len(runes) <= n { return s }; return string(runes[:n])
+	if len(s) <= n {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= n {
+		return s
+	}
+	return string(runes[:n])
 }
