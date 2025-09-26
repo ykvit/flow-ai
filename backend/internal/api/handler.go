@@ -123,7 +123,6 @@ func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request
 	var req service.CreateMessageRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("Error decoding request body: %v", err)
-		// Use a helper to send a structured SSE error
 		sendStreamError(w, "Invalid request body")
 		return
 	}
@@ -146,7 +145,51 @@ func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request
 	log.Println("Finished streaming response.")
 }
 
-// --- Title and Chat Deletion Handlers ---
+// NEW: HandleRegenerateMessage handles the streaming request to regenerate a response.
+// @Summary      Regenerate a message
+// @Description  Creates a new response for a previous user prompt, creating a new branch in the conversation.
+// @Tags         Chats
+// @Accept       json
+// @Produce      text/event-stream
+// @Param        chatID    path      string                              true  "Chat ID"
+// @Param        messageID path      string                              true  "The ID of the assistant message to regenerate"
+// @Param        regenRequest body   service.RegenerateMessageRequest    true  "Regeneration options"
+// @Success      200       {object}  model.StreamResponse "Stream of new response chunks"
+// @Failure      400       {object}  map[string]string "Sent as a stream error event"
+// @Failure      404       {object}  map[string]string "Sent as a stream error event"
+// @Router       /chats/{chatID}/messages/{messageID}/regenerate [post]
+func (h *ChatHandler) HandleRegenerateMessage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	chatID := chi.URLParam(r, "chatID")
+	messageID := chi.URLParam(r, "messageID")
+
+	var req service.RegenerateMessageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendStreamError(w, "Invalid request payload")
+		return
+	}
+	req.ChatID = chatID // Pass chatID to the service layer
+
+	streamChan := make(chan model.StreamResponse)
+	go h.chatService.RegenerateMessage(r.Context(), chatID, messageID, &req, streamChan)
+
+	for chunk := range streamChan {
+		if r.Context().Err() != nil {
+			log.Println("Client disconnected during regeneration.")
+			break
+		}
+		jsonData, _ := json.Marshal(chunk)
+		fmt.Fprintf(w, "data: %s\n\n", string(jsonData))
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+	}
+
+	log.Println("Finished streaming regenerated response.")
+}
 
 // UpdateTitleRequest is the structure for the manual title update request.
 type UpdateTitleRequest struct {
