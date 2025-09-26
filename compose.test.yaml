@@ -1,0 +1,36 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    ports:
+      - "8088:8000"
+    environment:
+      - DATABASE_PATH=/app/data/flow-test.db
+      - OLLAMA_URL=http://ollama:11434
+      - INITIAL_SYSTEM_PROMPT=You are a testing assistant.
+    volumes:
+      - flow_test_data:/app/data
+    networks:
+      - flow-test-network
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama
+    container_name: flow_test_ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    volumes:
+      - ollama_test:/root/.ollama
+    networks:
+      - flow-test-network
+
+networks:
+  flow-test-network:
+    driver: bridge
+
+volumes:
+  flow_test_data: {}
+  ollama_test: {}
