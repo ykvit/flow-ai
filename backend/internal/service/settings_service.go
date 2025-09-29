@@ -151,7 +151,12 @@ func (s *SettingsService) saveToDB(ctx context.Context, settings *Settings) erro
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			slog.Error("Failed to rollback save settings transaction", "error", err)
+		}
+	}()
 
 	settingsMap := map[string]string{
 		"system_prompt": settings.SystemPrompt,

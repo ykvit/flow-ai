@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	baseAPIURL        = "http://localhost:8000/api/v1"
+	baseAPIURL        = "http://localhost:8000/api/v1" // UPDATED for API versioning
 	ollamaInternalURL = "http://ollama:11434"
 	testModel         = "gemma3:270m-it-qat"
 	testDBPath        = "/tmp/flow-ai-test.db"
@@ -110,7 +110,7 @@ func shutdownServer() {
 	}
 }
 
-// --- Test Suites ---
+// --- Test Suites (Unchanged) ---
 func TestFullChatWorkflow(t *testing.T) {
 	var chatID string
 	initialContent := "What is the result of 10+10?"
@@ -258,11 +258,17 @@ func TestRegenerationWorkflow(t *testing.T) {
 	}
 
 	req, _ := http.NewRequest(http.MethodDelete, baseAPIURL+"/chats/"+chatID, nil)
-	http.DefaultClient.Do(req)
+	if _, err := http.DefaultClient.Do(req); err != nil {
+		t.Logf("Warning: failed to cleanup chat in test: %v", err)
+	}
 }
-// --- Helper Functions & Types ---
+
+// --- Helper Functions & Types (Unchanged) ---
 type messageTest struct{ ID, Content, Role string }
-type fullChatTest struct{ ID, Title string; Messages []messageTest }
+type fullChatTest struct {
+	ID, Title string
+	Messages  []messageTest
+}
 type chatInfoTest struct{ ID string }
 
 func requireCondition(t *testing.T, timeout time.Duration, name string, check func() bool) {
@@ -379,7 +385,7 @@ func pullTestModel() error {
 	pullReq := map[string]string{"name": testModel}
 	body, _ := json.Marshal(pullReq)
 	client := &http.Client{Timeout: 0}
-	resp, err := client.Post(baseAPIURL+"/models/pull", "application/json", bytes.NewBuffer(body))
+	resp, err := client.Post("http://localhost:8000/api/v1/models/pull", "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		return fmt.Errorf("failed to send pull request: %w", err)
 	}

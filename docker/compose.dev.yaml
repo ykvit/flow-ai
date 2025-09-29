@@ -1,26 +1,21 @@
-# docker/compose.dev.yaml
-
 services:
-  # Перевизначаємо сервіс 'flow-ai' з базового файлу для розробки
   flow-ai:
     container_name: flow-ai-backend-dev
     build:
       context: ..
       dockerfile: Dockerfile
-      target: builder-backend # Використовуємо образ з Go для запуску коду "на льоту"
+      target: builder-backend 
     command: go run ./cmd/server
     volumes:
-      - ../backend:/src # Прокидаємо вихідний код для live-reload
+      - ../backend:/src
     ports:
       - "8000:8000"
     working_dir: /src
     environment:
-      # Використовуємо локальну БД для зручності інспекції
       - DATABASE_PATH=/src/flow-dev.db
       - OLLAMA_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
       - LOG_LEVEL=DEBUG
 
-  # Сервіс для розробки фронтенду залишається окремим
   frontend:
     container_name: flow-ai-frontend-dev
     build:
@@ -30,20 +25,17 @@ services:
     command: npm run dev -- --host
     volumes:
       - ../frontend:/app
-      - /app/node_modules # Анонімний volume для ізоляції node_modules
+      - /app/node_modules 
     ports:
       - "5173:5173"
     networks:
-      - flow-ai-net # Підключаємо до спільної мережі
+      - flow-ai-net 
 
-  # Перевизначаємо ollama, щоб прокинути порт на хост-машину
   ollama:
     ports:
       - "11434:11434"
 
-# Це робить volume 'ollama-data' доступним для інших compose-проєктів (наприклад, для stable-diffusion-ui)
-# що дозволяє їм використовувати ті ж самі моделі без дублювання.
 volumes:
   ollama-data:
-    name: ollama # Даємо ім'я, щоб зробити його 'external'
+    name: ollama 
     external: true

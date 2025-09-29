@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	_ "flow-ai/backend/docs"
+
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 

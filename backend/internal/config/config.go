@@ -34,7 +34,7 @@ func LoadBootstrapConfig() (*BootstrapConfig, error) {
 			}
 		}
 	}
-	
+
 	if dbPath := os.Getenv("DATABASE_PATH"); dbPath != "" {
 		cfg.DatabasePath = dbPath
 	}

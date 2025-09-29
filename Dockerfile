@@ -15,11 +15,11 @@ FROM golang:1.22-alpine AS builder-backend
 WORKDIR /src
 RUN apk add --no-cache build-base
 RUN addgroup -S appgroup -g 1001 && adduser -S appuser -u 1001 -G appgroup
+RUN go install golang.org/x/tools/cmd/goimports@v0.21.0
+RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59.1
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ ./
-# FINAL FIX: Restore the missing build command!
-# The output binary will be created at /src/server
 RUN go build -ldflags="-w -s" -o ./server ./cmd/server
 RUN chown -R appuser:appgroup /src
 
