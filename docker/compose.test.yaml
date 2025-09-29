@@ -14,9 +14,9 @@ services:
       # the Go toolchain, dependencies, and all source code needed to run tests.
       target: builder-backend
     
-    # The working directory inside the container. All paths in the command
-    # and volumes will be relative to this.
-    working_dir: /app
+    # CHANGED: The working directory now matches the Dockerfile's 'builder-backend' stage.
+    # This creates consistency between the build environment and the test environment.
+    working_dir: /src
 
     # NOTE: We do not need to redefine networks or depends_on.
     # They are correctly inherited from compose.base.yaml.
@@ -30,15 +30,18 @@ services:
       - LOG_LEVEL=DEBUG
 
     volumes:
-      # Mount the backend source code for live testing without rebuilding the image.
-      - ../backend:/app
-      # Mount the coverage directory to persist test reports on the host.
-      - ../coverage:/app/coverage
-      # Mount the test runner script itself.
-      - ./test_runner.sh:/app/test_runner.sh
+      # CHANGED: Mount the backend source code to '/src' to match the working directory.
+      - ../backend:/src
+      
+      # CHANGED: Mount the coverage directory to a dedicated '/reports' directory inside
+      # the container. This isolates test artifacts from the source code.
+      - ../coverage:/reports
+      
+      # CHANGED: Mount the test runner script to a top-level, isolated path.
+      - ./test_runner.sh:/test_runner.sh
     
-    # Override the default command/entrypoint to run our test script instead of the server.
-    command: sh /app/test_runner.sh
+    # CHANGED: Update the command to execute the script from its new, isolated location.
+    command: sh /test_runner.sh
 
   # Override the ollama service to use a separate, isolated volume for test data.
   # This prevents tests from interfering with your development data and vice-versa.
