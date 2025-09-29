@@ -3,64 +3,130 @@ package tests
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"flow-ai/backend/internal/api"
+	"flow-ai/backend/internal/config"
+	"flow-ai/backend/internal/database"
+	"flow-ai/backend/internal/llm"
+	"flow-ai/backend/internal/repository"
+	"flow-ai/backend/internal/service"
 )
 
 const (
-	baseAPIURL  = "http://localhost:8088/api"
-	testModel   = "gemma3:270m-it-qat"
-	composeFile = "compose.test.yaml"
+	baseAPIURL        = "http://localhost:8000/api"
+	ollamaInternalURL = "http://ollama:11434"
+	testModel         = "gemma3:270m-it-qat"
+	testDBPath        = "/tmp/flow-ai-test.db" // Use an in-memory or temp-file DB for tests
 )
 
-// --- Test Main Setup & Teardown ---
+var testServer *http.Server
 
+// TestMain now orchestrates the entire test lifecycle:
+// 1. Sets up the server programmatically.
+// 2. Runs it in a goroutine.
+// 3. Waits for dependent services.
+// 4. Pulls the test model.
+// 5. Runs the tests.
+// 6. Gracefully shuts down the server.
 func TestMain(m *testing.M) {
-	// Using t.Logf is not possible in TestMain, so we use standard log here.
-	fmt.Println("--- Setting up test environment ---")
+	// Clean up any previous test database file.
+	_ = os.Remove(testDBPath)
 
-	cmdUp := exec.Command("docker", "compose", "-f", composeFile, "up", "-d", "--build")
-	if err := runCommand(cmdUp); err != nil {
-		fmt.Printf("Failed to start docker compose: %v. Cleaning up...\n", err)
-		cleanup()
+	fmt.Println("--- [TestMain] Setting up test environment ---")
+	if err := setupTestServer(); err != nil {
+		fmt.Printf("[TestMain] ERROR: Failed to set up test server: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := waitForBackend(); err != nil {
-		fmt.Printf("Backend not ready: %v. Cleaning up.\n", err)
-		cleanup()
+	// Run the server in a background goroutine.
+	go func() {
+		fmt.Println("[TestMain] Starting in-process server...")
+		if err := testServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("[TestMain] ERROR: In-process server failed: %v\n", err)
+			os.Exit(1)
+		}
+	}()
+
+	if err := waitForServices(); err != nil {
+		fmt.Printf("[TestMain] ERROR: Services did not become ready: %v\n", err)
+		shutdownServer()
 		os.Exit(1)
 	}
-	fmt.Println("Backend is ready.")
+	fmt.Println("[TestMain] All services are ready.")
 
 	if err := pullTestModel(); err != nil {
-		fmt.Printf("Failed to pull test model: %v. Cleaning up.\n", err)
-		cleanup()
+		fmt.Printf("[TestMain] ERROR: Failed to pull test model: %v\n", err)
+		shutdownServer()
 		os.Exit(1)
 	}
-	fmt.Printf("Test model '%s' pulled successfully.\n", testModel)
+	fmt.Printf("[TestMain] Test model '%s' pulled successfully.\n", testModel)
 
+	// Run all tests.
 	exitCode := m.Run()
 
-	fmt.Println("--- Tearing down test environment ---")
-	cleanup()
+	// Teardown.
+	shutdownServer()
+	_ = os.Remove(testDBPath)
 
 	os.Exit(exitCode)
 }
 
-// --- Test Suites ---
+// setupTestServer initializes all dependencies and creates an http.Server instance.
+// This mirrors the logic from `internal/app/app.go` but is adapted for a test context.
+func setupTestServer() error {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
 
+	bootstrapCfg, err := config.LoadBootstrapConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load bootstrap config: %w", err)
+	}
+
+	// Override the database path for tests to ensure isolation.
+	db, err := database.InitDB(testDBPath)
+	if err != nil {
+		return fmt.Errorf("failed to init test DB: %w", err)
+	}
+
+	repo := repository.NewSQLiteRepository(db)
+	ollamaProvider := llm.NewOllamaProvider(bootstrapCfg.OllamaURL)
+	settingsService := service.NewSettingsService(db, ollamaProvider)
+	_, _ = settingsService.InitAndGet(context.Background(), bootstrapCfg.SystemPrompt)
+	chatService := service.NewChatService(repo, ollamaProvider, settingsService)
+	modelService := service.NewModelService(ollamaProvider)
+	chatHandler := api.NewChatHandler(chatService, settingsService)
+	modelHandler := api.NewModelHandler(modelService)
+	router := api.NewRouter(chatHandler, modelHandler)
+
+	testServer = &http.Server{
+		Addr:    ":8000",
+		Handler: router,
+	}
+	return nil
+}
+
+func shutdownServer() {
+	fmt.Println("--- [TestMain] Tearing down test environment ---")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := testServer.Shutdown(ctx); err != nil {
+		fmt.Printf("[TestMain] WARN: Server shutdown failed: %v\n", err)
+	}
+}
+
+// --- Test Suites (Unchanged) ---
 func TestFullChatWorkflow(t *testing.T) {
 	var chatID string
-	initialContent := "What is the result of 10+10?" // Use a different simple question
+	initialContent := "What is the result of 10+10?"
 
 	t.Run("CreateNewChat", func(t *testing.T) {
 		resp, err := createMessage(t, "", initialContent)
@@ -145,7 +211,6 @@ func TestFullChatWorkflow(t *testing.T) {
 }
 
 func TestRegenerationWorkflow(t *testing.T) {
-	// 1. Setup: Use a more creative prompt to ensure different responses.
 	resp, err := createMessage(t, "", "Suggest a name for a pet robot.")
 	if err != nil {
 		t.Fatal(err)
@@ -155,7 +220,6 @@ func TestRegenerationWorkflow(t *testing.T) {
 	var chatID string
 	var initialAssistantMessage messageTest
 
-	// Wait for the chat to be created.
 	requireCondition(t, 10*time.Second, "chat creation", func() bool {
 		chats := listChats(t)
 		if len(chats) == 1 {
@@ -171,7 +235,6 @@ func TestRegenerationWorkflow(t *testing.T) {
 	}
 	drainStream(t, resp.Body)
 
-	// Wait for the second assistant message.
 	requireCondition(t, 20*time.Second, "second assistant message", func() bool {
 		chat := getFullChat(t, chatID)
 		if len(chat.Messages) == 4 {
@@ -183,20 +246,17 @@ func TestRegenerationWorkflow(t *testing.T) {
 
 	t.Logf("Initial assistant message ID: %s, Length: %d", initialAssistantMessage.ID, len(initialAssistantMessage.Content))
 
-	// 2. Action: Regenerate the last message without a seed.
 	url := fmt.Sprintf("%s/chats/%s/messages/%s/regenerate", baseAPIURL, chatID, initialAssistantMessage.ID)
-	reqBody := `{}` // No options, let it be random
+	reqBody := `{}`
 	regenResp, err := http.Post(url, "application/json", strings.NewReader(reqBody))
 	if err != nil {
 		t.Fatalf("Regenerate request failed: %v", err)
 	}
 	drainStream(t, regenResp.Body)
 
-	// 3. Verification: Check that the message ID has changed.
 	var regeneratedAssistantMessage messageTest
 	requireCondition(t, 20*time.Second, "message regeneration", func() bool {
 		chat := getFullChat(t, chatID)
-		// The key check: the last message ID must be different.
 		if len(chat.Messages) == 4 && chat.Messages[3].ID != initialAssistantMessage.ID {
 			regeneratedAssistantMessage = chat.Messages[3]
 			return true
@@ -210,18 +270,14 @@ func TestRegenerationWorkflow(t *testing.T) {
 		t.Logf("Warning: Regenerated content was the same as the original. This can happen occasionally.")
 	}
 
-	// 4. Cleanup: Delete the chat.
 	req, _ := http.NewRequest(http.MethodDelete, baseAPIURL+"/chats/"+chatID, nil)
 	http.DefaultClient.Do(req)
 }
-
-// --- Helper Functions & Types ---
-
+// --- Helper Functions & Types (Unchanged) ---
 type messageTest struct{ ID, Content, Role string }
 type fullChatTest struct{ ID, Title string; Messages []messageTest }
 type chatInfoTest struct{ ID string }
 
-// requireCondition is a generic helper to wait for a state to be true.
 func requireCondition(t *testing.T, timeout time.Duration, name string, check func() bool) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
@@ -300,45 +356,43 @@ func truncate(s string, n int) string {
 	}
 	return string(runes[:n])
 }
-func runCommand(cmd *exec.Cmd) error {
-	projectRoot, err := getProjectRoot()
-	if err != nil {
-		return fmt.Errorf("could not find project root: %w", err)
+
+func waitForServices() error {
+	services := map[string]string{
+		"Backend": baseAPIURL + "/settings",
+		"Ollama":  ollamaInternalURL,
 	}
-	cmd.Dir = projectRoot
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-func getProjectRoot() (string, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Abs(filepath.Join(wd, "..", ".."))
-}
-func cleanup() {
-	cmdDown := exec.Command("docker", "compose", "-f", composeFile, "down", "-v")
-	if err := runCommand(cmdDown); err != nil {
-		fmt.Printf("WARN: Failed to stop docker-compose: %v\n", err)
-	}
-}
-func waitForBackend() error {
-	client := &http.Client{Timeout: 3 * time.Second}
-	for i := 0; i < 30; i++ {
-		time.Sleep(2 * time.Second)
-		resp, err := client.Get(baseAPIURL + "/settings")
-		if err == nil && resp.StatusCode == http.StatusOK {
-			resp.Body.Close()
-			return nil
+	client := &http.Client{Timeout: 2 * time.Second}
+
+	for name, url := range services {
+		fmt.Printf("Waiting for %s at %s...\n", name, url)
+		ready := false
+		for i := 0; i < 30; i++ {
+			resp, err := client.Get(url)
+			if err == nil && resp.StatusCode == http.StatusOK {
+				resp.Body.Close()
+				fmt.Printf("%s is ready.\n", name)
+				ready = true
+				break
+			}
+			if resp != nil {
+				resp.Body.Close()
+			}
+			time.Sleep(2 * time.Second)
+		}
+		if !ready {
+			return fmt.Errorf("%s service did not become ready in time", name)
 		}
 	}
-	return fmt.Errorf("backend did not become ready in time")
+	return nil
 }
+
 func pullTestModel() error {
+	fmt.Printf("Requesting backend to pull model: %s\n", testModel)
 	pullReq := map[string]string{"name": testModel}
 	body, _ := json.Marshal(pullReq)
-	resp, err := http.Post(baseAPIURL+"/models/pull", "application/json", bytes.NewBuffer(body))
+	client := &http.Client{Timeout: 0}
+	resp, err := client.Post(baseAPIURL+"/models/pull", "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		return fmt.Errorf("failed to send pull request: %w", err)
 	}
@@ -347,8 +401,13 @@ func pullTestModel() error {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("model pull returned non-200 status: %d. Body: %s", resp.StatusCode, string(bodyBytes))
 	}
+	fmt.Println("Pulling model (this may take a while)...")
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
 	}
-	return scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading model pull stream: %w", err)
+	}
+	fmt.Println("Model pull stream finished.")
+	return nil
 }

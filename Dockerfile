@@ -1,68 +1,52 @@
 # =================================================================
-# Target: 'builder-frontend' - Builds the React static files
+# Stage 1: Frontend Builder
 # =================================================================
 FROM node:20-alpine AS builder-frontend
 WORKDIR /app
-
-# Copy package files and install dependencies
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
-
-# Copy the rest of the frontend source code and build it
 COPY frontend/ ./
 RUN npm run build
 
-
 # =================================================================
-# Target: 'builder-backend' - Compiles the Go application
+# Stage 2: Backend Builder
 # =================================================================
 FROM golang:1.22-alpine AS builder-backend
 WORKDIR /src
-
 RUN apk add --no-cache build-base
-
-# Copy Go module files
+RUN addgroup -S appgroup -g 1001 && adduser -S appuser -u 1001 -G appgroup
 COPY backend/go.mod backend/go.sum ./
-
-# It makes the build process more robust.
-RUN go mod tidy
-
-# Download dependencies based on the now-correct go.sum
 RUN go mod download
-
-# Copy the rest of the backend source code
 COPY backend/ ./
-
-RUN go build -ldflags="-w -s" -o /app/server ./cmd/server
-
-
-# =================================================================
-# Target: 'frontend' (Final Production Image for NGINX)
-# =================================================================
-FROM nginx:1.25-alpine AS frontend
-
-# Copy the built static files from the frontend builder stage
-COPY --from=builder-frontend /app/dist /usr/share/nginx/html
-
-# The NGINX config will be mounted via compose.yaml
-# Expose port 80 for NGINX
-EXPOSE 80
-
-# The default NGINX command runs automatically
-CMD ["nginx", "-g", "daemon off;"]
-
+# FINAL FIX: Restore the missing build command!
+# The output binary will be created at /src/server
+RUN go build -ldflags="-w -s" -o ./server ./cmd/server
+RUN chown -R appuser:appgroup /src
 
 # =================================================================
-# Target: 'backend' (Final Production Image for Go)
+# Stage 3: Docs Generator
 # =================================================================
-FROM alpine:latest AS backend
+FROM golang:1.22-alpine AS docs-generator
+WORKDIR /src
+RUN go install github.com/swaggo/swag/cmd/swag@latest
+COPY backend/ ./
+RUN swag init -g cmd/server/main.go
+
+# =================================================================
+# Stage 4: Final Production Image
+# =================================================================
+FROM alpine:3.20 AS final
 WORKDIR /app
-
-# Copy just the compiled Go binary from the backend builder stage
-COPY --from=builder-backend /app/server .
-
-# Expose the port the Go app runs on
-EXPOSE 8000
-
-# The command to run the application
-CMD ["./server"]
+RUN apk add --no-cache nginx ca-certificates
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+COPY --from=builder-backend /src/server /usr/local/bin/server
+COPY --from=builder-frontend /app/dist /app/frontend/dist
+COPY --from=docs-generator /src/docs /app/docs
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY --chmod=755 docker/entrypoint.sh /entrypoint.sh
+RUN chown -R appuser:appgroup /app && \
+    mkdir -p /data /var/log/nginx /var/lib/nginx/tmp && \
+    chown -R appuser:appgroup /data /var/log/nginx /var/lib/nginx
+USER appuser
+EXPOSE 80
+ENTRYPOINT ["/entrypoint.sh"]

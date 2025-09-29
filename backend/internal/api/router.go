@@ -19,7 +19,7 @@ func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/swagger/*", httpSwagger.WrapHandler)
+	r.Get("/api/swagger/*", httpSwagger.WrapHandler)
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Timeout(60 * time.Second))

@@ -1,0 +1,52 @@
+# This file OVERRIDES the base configuration for running integration tests.
+# It should be used with the base file like this:
+# HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose -f docker/compose.base.yaml -f docker/compose.test.yaml up --build --abort-on-container-exit
+
+services:
+  # The service name 'flow-ai' MUST match the one in compose.base.yaml
+  # to correctly override its configuration.
+  flow-ai:
+    container_name: flow-ai-backend-tester
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      # IMPORTANT: We use the 'builder-backend' stage because it contains
+      # the Go toolchain, dependencies, and all source code needed to run tests.
+      target: builder-backend
+    
+    # The working directory inside the container. All paths in the command
+    # and volumes will be relative to this.
+    working_dir: /app
+
+    # NOTE: We do not need to redefine networks or depends_on.
+    # They are correctly inherited from compose.base.yaml.
+    
+    # The environment section is used here to pass the host user's UID/GID
+    # into the container, so the test runner can fix file permissions.
+    environment:
+      - HOST_UID=${HOST_UID}
+      - HOST_GID=${HOST_GID}
+      # Set log level to DEBUG for more verbose output during tests.
+      - LOG_LEVEL=DEBUG
+
+    volumes:
+      # Mount the backend source code for live testing without rebuilding the image.
+      - ../backend:/app
+      # Mount the coverage directory to persist test reports on the host.
+      - ../coverage:/app/coverage
+      # Mount the test runner script itself.
+      - ./test_runner.sh:/app/test_runner.sh
+    
+    # Override the default command/entrypoint to run our test script instead of the server.
+    command: sh /app/test_runner.sh
+
+  # Override the ollama service to use a separate, isolated volume for test data.
+  # This prevents tests from interfering with your development data and vice-versa.
+  ollama:
+    volumes:
+      - ollama_test_data:/root/.ollama
+
+volumes:
+  # Define a separate volume for test data. It will be created on first use
+  # and removed when running `docker compose down -v`.
+  ollama_test_data: {}
