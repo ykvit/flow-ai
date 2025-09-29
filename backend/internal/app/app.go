@@ -1,8 +1,8 @@
-// File: backend/internal/app/app.go
 package app
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -60,13 +60,13 @@ func Run() int {
 		Addr:              ":8000",
 		Handler:           router,
 		ReadHeaderTimeout: 20 * time.Second,
-		WriteTimeout:      0,
+		WriteTimeout:      0, // Disabled for streaming endpoints
 		IdleTimeout:       120 * time.Second,
 	}
 
 	slog.Info("Starting server", "port", 8000)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		slog.Error("Failed to start server", "error", err)
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		slog.Error("Server failed", "error", err)
 		return 1
 	}
 
@@ -78,8 +78,6 @@ func setupLogger() {
 	switch strings.ToUpper(os.Getenv("LOG_LEVEL")) {
 	case "DEBUG":
 		level = slog.LevelDebug
-	case "INFO":
-		level = slog.LevelInfo
 	case "WARN":
 		level = slog.LevelWarn
 	case "ERROR":

@@ -16,15 +16,18 @@ func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
+	r.Use(middleware.Logger) // Chi's default logger is fine for dev
 	r.Use(middleware.Recoverer)
 
+	// Swagger documentation route
 	r.Get("/api/swagger/*", httpSwagger.WrapHandler)
 
-	r.Group(func(r chi.Router) {
-		r.Use(middleware.Timeout(60 * time.Second))
+	// API version 1 routes
+	r.Route("/api/v1", func(r chi.Router) {
+		// Group for routes with a standard request timeout
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Timeout(60 * time.Second))
 
-		r.Route("/api", func(r chi.Router) {
 			// --- Settings ---
 			r.Get("/settings", chatHandler.GetSettings)
 			r.Post("/settings", chatHandler.UpdateSettings)
@@ -40,16 +43,17 @@ func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 			r.Post("/models/show", modelHandler.HandleShowModel)
 			r.Delete("/models", modelHandler.HandleDeleteModel)
 		})
+
+		// Group for long-running streaming routes that should NOT have a timeout
+		r.Group(func(r chi.Router) {
+			r.Post("/chats/messages", chatHandler.HandleStreamMessage)
+			r.Post("/chats/{chatID}/messages/{messageID}/regenerate", chatHandler.HandleRegenerateMessage)
+			r.Post("/models/pull", modelHandler.HandlePullModel)
+		})
 	})
 
-	// Group for long-running streaming routes that should NOT have a timeout
-	r.Group(func(r chi.Router) {
-		r.Post("/api/chats/messages", chatHandler.HandleStreamMessage)
-		r.Post("/api/models/pull", modelHandler.HandlePullModel)
-		// NEW: Route for regenerating a message
-		r.Post("/api/chats/{chatID}/messages/{messageID}/regenerate", chatHandler.HandleRegenerateMessage)
-	})
-
+	// In a production setup with Nginx, this file server is not strictly necessary,
+	// but it's useful for simplified local development without the reverse proxy.
 	fileServer := http.FileServer(http.Dir("./frontend/dist"))
 	r.Handle("/*", http.StripPrefix("/", fileServer))
 

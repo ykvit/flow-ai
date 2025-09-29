@@ -27,16 +27,16 @@ func NewChatHandler(chatSvc *service.ChatService, settingsSvc *service.SettingsS
 
 // GetSettings godoc
 // @Summary      Get application settings
-// @Description  Retrieves the current global settings for the application, such as the default model.
+// @Description  Retrieves the current global settings for the application.
 // @Tags         Settings
 // @Produce      json
 // @Success      200  {object}  service.Settings
-// @Failure      500  {object}  map[string]string
-// @Router       /settings [get]
+// @Failure      500  {object}  ErrorResponse
+// @Router       /v1/settings [get]
 func (h *ChatHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	settings, err := h.settingsService.Get(r.Context())
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not retrieve settings")
+		respondWithError(w, http.StatusInternalServerError, "Could not retrieve settings", err)
 		return
 	}
 	respondWithJSON(w, http.StatusOK, settings)
@@ -44,44 +44,44 @@ func (h *ChatHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 
 // UpdateSettings godoc
 // @Summary      Update application settings
-// @Description  Updates the global settings. The models specified must be available in Ollama.
+// @Description  Updates the global settings. Models must be available in Ollama.
 // @Tags         Settings
 // @Accept       json
 // @Produce      json
 // @Param        settings  body      service.Settings  true  "New settings to apply"
-// @Success      200       {object}  map[string]string
-// @Failure      400       {object}  map[string]string
-// @Failure      500       {object}  map[string]string
-// @Router       /settings [post]
+// @Success      200       {object}  StatusResponse
+// @Failure      400       {object}  ErrorResponse
+// @Failure      500       {object}  ErrorResponse
+// @Router       /v1/settings [post]
 func (h *ChatHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var newSettings service.Settings
 	if err := json.NewDecoder(r.Body).Decode(&newSettings); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
 
 	if err := h.settingsService.Save(r.Context(), &newSettings); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not save settings")
+		respondWithError(w, http.StatusInternalServerError, "Could not save settings", err)
 		return
 	}
 
-	slog.Info("Settings updated.")
-	respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	slog.Info("Application settings updated")
+	respondWithJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
 }
 
 // GetChats godoc
 // @Summary      List all chats
-// @Description  Retrieves a list of all chats for the user, sorted by the most recently updated.
+// @Description  Retrieves a list of all chats, sorted by the most recently updated.
 // @Tags         Chats
 // @Produce      json
 // @Success      200  {array}   model.Chat
-// @Failure      500  {object}  map[string]string
-// @Router       /chats [get]
+// @Failure      500  {object}  ErrorResponse
+// @Router       /v1/chats [get]
 func (h *ChatHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 	userID := "default-user" // This will be replaced with auth later.
 	chats, err := h.chatService.ListChats(r.Context(), userID)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not retrieve chats")
+		respondWithError(w, http.StatusInternalServerError, "Could not retrieve chats", err)
 		return
 	}
 	respondWithJSON(w, http.StatusOK, chats)
@@ -89,33 +89,33 @@ func (h *ChatHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 
 // GetChat godoc
 // @Summary      Get a single chat
-// @Description  Retrieves the full history and metadata for a single chat's active branch.
+// @Description  Retrieves the full history for a single chat's active branch.
 // @Tags         Chats
 // @Produce      json
 // @Param        chatID  path      string  true  "Chat ID"
 // @Success      200     {object}  model.FullChat
-// @Failure      404     {object}  map[string]string
-// @Router       /chats/{chatID} [get]
+// @Failure      404     {object}  ErrorResponse
+// @Router       /v1/chats/{chatID} [get]
 func (h *ChatHandler) GetChat(w http.ResponseWriter, r *http.Request) {
 	chatID := chi.URLParam(r, "chatID")
 	fullChat, err := h.chatService.GetFullChat(r.Context(), chatID)
 	if err != nil {
-		respondWithError(w, http.StatusNotFound, "Chat not found")
+		respondWithError(w, http.StatusNotFound, "Chat not found", err)
 		return
 	}
 	respondWithJSON(w, http.StatusOK, fullChat)
 }
 
 // HandleStreamMessage godoc
-// @Summary      Create a message (and stream response)
-// @Description  Sends a new message and initiates a real-time stream of the assistant's response. If chat_id is omitted, a new chat is created. The response is a server-sent event stream.
+// @Summary      Create a message and stream the response
+// @Description  Sends a new message and initiates a real-time stream of the assistant's response.
 // @Tags         Chats
 // @Accept       json
 // @Produce      text/event-stream
 // @Param        message  body  service.CreateMessageRequest  true  "Message Request"
 // @Success      200      {object} model.StreamResponse "Stream of response chunks"
-// @Failure      400      {object} map[string]string "Sent as a stream error event"
-// @Router       /chats/messages [post]
+// @Failure      400      {object} ErrorResponse "Sent as a stream error event"
+// @Router       /v1/chats/messages [post]
 func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -148,7 +148,7 @@ func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request
 
 // HandleRegenerateMessage godoc
 // @Summary      Regenerate a message
-// @Description  Creates a new response for a previous user prompt, creating a new branch in the conversation.
+// @Description  Creates a new response for a previous user prompt.
 // @Tags         Chats
 // @Accept       json
 // @Produce      text/event-stream
@@ -156,9 +156,9 @@ func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request
 // @Param        messageID path      string                              true  "The ID of the assistant message to regenerate"
 // @Param        regenRequest body   service.RegenerateMessageRequest    true  "Regeneration options"
 // @Success      200       {object}  model.StreamResponse "Stream of new response chunks"
-// @Failure      400       {object}  map[string]string "Sent as a stream error event"
-// @Failure      404       {object}  map[string]string "Sent as a stream error event"
-// @Router       /chats/{chatID}/messages/{messageID}/regenerate [post]
+// @Failure      400       {object}  ErrorResponse "Sent as a stream error event"
+// @Failure      404       {object}  ErrorResponse "Sent as a stream error event"
+// @Router       /v1/chats/{chatID}/messages/{messageID}/regenerate [post]
 func (h *ChatHandler) HandleRegenerateMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -172,7 +172,6 @@ func (h *ChatHandler) HandleRegenerateMessage(w http.ResponseWriter, r *http.Req
 		sendStreamError(w, "Invalid request payload")
 		return
 	}
-	req.ChatID = chatID // Pass chatID to the service layer
 
 	streamChan := make(chan model.StreamResponse)
 	go h.chatService.RegenerateMessage(r.Context(), chatID, messageID, &req, streamChan)
@@ -192,13 +191,6 @@ func (h *ChatHandler) HandleRegenerateMessage(w http.ResponseWriter, r *http.Req
 	slog.Debug("Finished streaming regenerated response.")
 }
 
-// --- Title and Chat Deletion Handlers ---
-
-// UpdateTitleRequest is the structure for the manual title update request.
-type UpdateTitleRequest struct {
-	Title string `json:"title"`
-}
-
 // UpdateChatTitle godoc
 // @Summary      Update a chat's title
 // @Description  Manually renames a chat.
@@ -207,24 +199,24 @@ type UpdateTitleRequest struct {
 // @Produce      json
 // @Param        chatID  path      string              true  "Chat ID"
 // @Param        title   body      UpdateTitleRequest  true  "New title"
-// @Success      200     {object}  map[string]string
-// @Failure      400     {object}  map[string]string
-// @Failure      500     {object}  map[string]string
-// @Router       /chats/{chatID}/title [put]
+// @Success      200     {object}  StatusResponse
+// @Failure      400     {object}  ErrorResponse
+// @Failure      500     {object}  ErrorResponse
+// @Router       /v1/chats/{chatID}/title [put]
 func (h *ChatHandler) UpdateChatTitle(w http.ResponseWriter, r *http.Request) {
 	chatID := chi.URLParam(r, "chatID")
 	var req UpdateTitleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
 
 	if err := h.chatService.UpdateChatTitle(r.Context(), chatID, req.Title); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not update chat title")
+		respondWithError(w, http.StatusInternalServerError, "Could not update chat title", err)
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	respondWithJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
 }
 
 // HandleDeleteChat godoc
@@ -233,41 +225,14 @@ func (h *ChatHandler) UpdateChatTitle(w http.ResponseWriter, r *http.Request) {
 // @Tags         Chats
 // @Produce      json
 // @Param        chatID  path      string  true  "Chat ID"
-// @Success      200     {object}  map[string]string
-// @Failure      500     {object}  map[string]string
-// @Router       /chats/{chatID} [delete]
+// @Success      200     {object}  StatusResponse
+// @Failure      500     {object}  ErrorResponse
+// @Router       /v1/chats/{chatID} [delete]
 func (h *ChatHandler) HandleDeleteChat(w http.ResponseWriter, r *http.Request) {
 	chatID := chi.URLParam(r, "chatID")
 	if err := h.chatService.DeleteChat(r.Context(), chatID); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not delete chat")
+		respondWithError(w, http.StatusInternalServerError, "Could not delete chat", err)
 		return
 	}
-	respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
-
-// --- Helper Functions ---
-
-func respondWithError(w http.ResponseWriter, code int, message string) {
-	slog.Warn("Responding with error", "code", code, "message", message)
-	respondWithJSON(w, code, map[string]string{"error": message})
-}
-
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	response, err := json.Marshal(payload)
-	if err != nil {
-		slog.Error("Failed to marshal JSON response", "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	w.Write(response)
-}
-
-func sendStreamError(w http.ResponseWriter, message string) {
-	slog.Warn("Sending stream error", "message", message)
-	errorPayload := map[string]string{"error": message}
-	jsonData, _ := json.Marshal(errorPayload)
-	fmt.Fprintf(w, "event: error\ndata: %s\n\n", string(jsonData))
+	respondWithJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
 }

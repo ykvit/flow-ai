@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -23,23 +24,15 @@ import (
 )
 
 const (
-	baseAPIURL        = "http://localhost:8000/api"
+	baseAPIURL        = "http://localhost:8000/api/v1"
 	ollamaInternalURL = "http://ollama:11434"
 	testModel         = "gemma3:270m-it-qat"
-	testDBPath        = "/tmp/flow-ai-test.db" // Use an in-memory or temp-file DB for tests
+	testDBPath        = "/tmp/flow-ai-test.db"
 )
 
 var testServer *http.Server
 
-// TestMain now orchestrates the entire test lifecycle:
-// 1. Sets up the server programmatically.
-// 2. Runs it in a goroutine.
-// 3. Waits for dependent services.
-// 4. Pulls the test model.
-// 5. Runs the tests.
-// 6. Gracefully shuts down the server.
 func TestMain(m *testing.M) {
-	// Clean up any previous test database file.
 	_ = os.Remove(testDBPath)
 
 	fmt.Println("--- [TestMain] Setting up test environment ---")
@@ -48,10 +41,9 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Run the server in a background goroutine.
 	go func() {
 		fmt.Println("[TestMain] Starting in-process server...")
-		if err := testServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := testServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			fmt.Printf("[TestMain] ERROR: In-process server failed: %v\n", err)
 			os.Exit(1)
 		}
@@ -71,18 +63,14 @@ func TestMain(m *testing.M) {
 	}
 	fmt.Printf("[TestMain] Test model '%s' pulled successfully.\n", testModel)
 
-	// Run all tests.
 	exitCode := m.Run()
 
-	// Teardown.
 	shutdownServer()
 	_ = os.Remove(testDBPath)
 
 	os.Exit(exitCode)
 }
 
-// setupTestServer initializes all dependencies and creates an http.Server instance.
-// This mirrors the logic from `internal/app/app.go` but is adapted for a test context.
 func setupTestServer() error {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
 
@@ -91,7 +79,6 @@ func setupTestServer() error {
 		return fmt.Errorf("failed to load bootstrap config: %w", err)
 	}
 
-	// Override the database path for tests to ensure isolation.
 	db, err := database.InitDB(testDBPath)
 	if err != nil {
 		return fmt.Errorf("failed to init test DB: %w", err)
@@ -123,7 +110,7 @@ func shutdownServer() {
 	}
 }
 
-// --- Test Suites (Unchanged) ---
+// --- Test Suites ---
 func TestFullChatWorkflow(t *testing.T) {
 	var chatID string
 	initialContent := "What is the result of 10+10?"
@@ -273,7 +260,7 @@ func TestRegenerationWorkflow(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodDelete, baseAPIURL+"/chats/"+chatID, nil)
 	http.DefaultClient.Do(req)
 }
-// --- Helper Functions & Types (Unchanged) ---
+// --- Helper Functions & Types ---
 type messageTest struct{ ID, Content, Role string }
 type fullChatTest struct{ ID, Title string; Messages []messageTest }
 type chatInfoTest struct{ ID string }
