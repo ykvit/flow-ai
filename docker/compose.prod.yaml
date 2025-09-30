@@ -7,6 +7,10 @@ services:
     ports:
       - "${APP_PORT:-3000}:80"
     restart: unless-stopped
+    networks:
+      - flow-ai-net
 
   ollama:
     restart: unless-stopped
+    networks:
+      - flow-ai-net

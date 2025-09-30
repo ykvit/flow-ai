@@ -16,6 +16,8 @@ services:
       - ../coverage:/reports
       - ./test_runner.sh:/test_runner.sh
     command: sh /test_runner.sh
+    networks:
+      - flow-ai-net
 
   frontend:
     container_name: flow-ai-frontend-tester
@@ -30,11 +32,15 @@ services:
       - ../frontend:/app
       - frontend_node_modules_test:/app/node_modules
     command: npm test
+    networks:
+      - flow-ai-net
 
   ollama:
     volumes:
       - ollama_test_data:/root/.ollama
+    networks:
+      - flow-ai-net
 
 volumes:
-  ollama_test_data: {}
   frontend_node_modules_test: {}
+  ollama_test_data: {}

@@ -14,6 +14,8 @@ services:
     environment:
       LOG_LEVEL: "DEBUG"
       DATABASE_PATH: "/src/flow-dev.db"
+    networks:
+      - flow-ai-net
 
   frontend:
     container_name: flow-ai-frontend-dev
@@ -34,6 +36,8 @@ services:
     container_name: flow-ai-ollama-dev
     ports:
       - "11434:11434"
+    networks:
+      - flow-ai-net
 
 volumes:
   frontend_node_modules: {}
