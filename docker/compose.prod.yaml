@@ -1,6 +1,5 @@
 services:
   flow-ai:
-    container_name: flow-ai-app
     build:
       context: ..
       dockerfile: Dockerfile

@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/viper"
+
 	"flow-ai/backend/internal/api"
 	"flow-ai/backend/internal/config"
 	"flow-ai/backend/internal/database"
@@ -24,7 +26,7 @@ import (
 )
 
 const (
-	baseAPIURL        = "http://localhost:8000/api/v1" // UPDATED for API versioning
+	baseAPIURL        = "http://localhost:8000/api/v1"
 	ollamaInternalURL = "http://ollama:11434"
 	testModel         = "gemma3:270m-it-qat"
 	testDBPath        = "/tmp/flow-ai-test.db"
@@ -32,6 +34,7 @@ const (
 
 var testServer *http.Server
 
+// TestMain sets up the entire test environment, including an in-process HTTP server.
 func TestMain(m *testing.M) {
 	_ = os.Remove(testDBPath)
 
@@ -71,23 +74,36 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
+// setupTestServer initializes all application components for testing.
 func setupTestServer() error {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
 
-	bootstrapCfg, err := config.LoadBootstrapConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load bootstrap config: %w", err)
-	}
+	// --- Programmatic Configuration for Isolated Tests ---
+	// We use viper to set configuration values directly, ensuring tests are
+	// hermetic and do not depend on external .env files.
+	viper.Set("DATABASE_PATH", testDBPath)
+	viper.Set("OLLAMA_URL", ollamaInternalURL)
+	viper.Set("INITIAL_SYSTEM_PROMPT", "You are a test assistant.")
+	viper.Set("LOG_LEVEL", "DEBUG")
 
-	db, err := database.InitDB(testDBPath)
+	// Load the configuration from the values we just set.
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load test configuration: %w", err)
+	}
+	// --- End of Correction ---
+
+	db, err := database.InitDB(cfg.DatabasePath)
 	if err != nil {
 		return fmt.Errorf("failed to init test DB: %w", err)
 	}
 
 	repo := repository.NewSQLiteRepository(db)
-	ollamaProvider := llm.NewOllamaProvider(bootstrapCfg.OllamaURL)
+	// Use the URL from our test config
+	ollamaProvider := llm.NewOllamaProvider(cfg.OllamaURL)
 	settingsService := service.NewSettingsService(db, ollamaProvider)
-	_, _ = settingsService.InitAndGet(context.Background(), bootstrapCfg.SystemPrompt)
+	// Use the prompt from our test config
+	_, _ = settingsService.InitAndGet(context.Background(), cfg.InitialSystemPrompt)
 	chatService := service.NewChatService(repo, ollamaProvider, settingsService)
 	modelService := service.NewModelService(ollamaProvider)
 	chatHandler := api.NewChatHandler(chatService, settingsService)
@@ -351,25 +367,43 @@ func truncate(s string, n int) string {
 }
 
 func waitForServices() error {
-	services := map[string]string{
-		"Backend": baseAPIURL + "/settings",
-		"Ollama":  ollamaInternalURL,
+	// For settings endpoint, we expect a 404 or 500 initially if settings are not found,
+	// but any valid HTTP response means the server is up.
+	backendCheck := func(client *http.Client) bool {
+		resp, err := client.Get(baseAPIURL + "/settings")
+		if err == nil {
+			resp.Body.Close()
+			return true // Any response from the server is good
+		}
+		return false
 	}
-	client := &http.Client{Timeout: 2 * time.Second}
 
-	for name, url := range services {
-		fmt.Printf("Waiting for %s at %s...\n", name, url)
+	ollamaCheck := func(client *http.Client) bool {
+		resp, err := client.Get(ollamaInternalURL)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			resp.Body.Close()
+			return true
+		}
+		if resp != nil {
+			resp.Body.Close()
+		}
+		return false
+	}
+
+	services := map[string]func(*http.Client) bool{
+		"Backend": backendCheck,
+		"Ollama":  ollamaCheck,
+	}
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	for name, checkFunc := range services {
+		fmt.Printf("Waiting for %s...\n", name)
 		ready := false
 		for i := 0; i < 30; i++ {
-			resp, err := client.Get(url)
-			if err == nil && resp.StatusCode == http.StatusOK {
-				resp.Body.Close()
+			if checkFunc(client) {
 				fmt.Printf("%s is ready.\n", name)
 				ready = true
 				break
-			}
-			if resp != nil {
-				resp.Body.Close()
 			}
 			time.Sleep(2 * time.Second)
 		}
@@ -384,8 +418,8 @@ func pullTestModel() error {
 	fmt.Printf("Requesting backend to pull model: %s\n", testModel)
 	pullReq := map[string]string{"name": testModel}
 	body, _ := json.Marshal(pullReq)
-	client := &http.Client{Timeout: 0}
-	resp, err := client.Post("http://localhost:8000/api/v1/models/pull", "application/json", bytes.NewBuffer(body))
+	client := &http.Client{Timeout: 0} // No timeout for potentially long pulls
+	resp, err := client.Post(baseAPIURL+"/models/pull", "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		return fmt.Errorf("failed to send pull request: %w", err)
 	}
@@ -394,13 +428,16 @@ func pullTestModel() error {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("model pull returned non-200 status: %d. Body: %s", resp.StatusCode, string(bodyBytes))
 	}
+
 	fmt.Println("Pulling model (this may take a while)...")
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
+		// We just drain the stream to wait for completion
 	}
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("error reading model pull stream: %w", err)
 	}
+
 	fmt.Println("Model pull stream finished.")
 	return nil
 }

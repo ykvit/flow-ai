@@ -10,13 +10,26 @@ services:
       - HOST_UID=${HOST_UID}
       - HOST_GID=${HOST_GID}
       - LOG_LEVEL=DEBUG
-
+      - DATABASE_PATH=/src/flow-test.db
     volumes:
       - ../backend:/src
       - ../coverage:/reports
       - ./test_runner.sh:/test_runner.sh
-    
     command: sh /test_runner.sh
+
+  frontend:
+    container_name: flow-ai-frontend-tester
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: builder-frontend
+    working_dir: /app
+    environment:
+      - NODE_ENV=test
+    volumes:
+      - ../frontend:/app
+      - frontend_node_modules_test:/app/node_modules
+    command: npm test
 
   ollama:
     volumes:
@@ -24,3 +37,4 @@ services:
 
 volumes:
   ollama_test_data: {}
+  frontend_node_modules_test: {}

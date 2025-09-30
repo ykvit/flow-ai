@@ -1,6 +1,0 @@
-{
-  "_comment": "This file is for local development without Docker. Settings here will be overridden by environment variables if they are set.",
-  "database_path": "flow.db",
-  "ollama_url": "http://localhost:11434",
-  "system_prompt": "You are a helpful assistant. Always respond in Markdown format."
-}

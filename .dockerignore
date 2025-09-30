@@ -23,7 +23,7 @@ npm-debug.log*
 .env
 .DS_Store
 
-# SQLite Database File - НЕ копіювати БД в образ!
+# SQLite Database File
 backend/data/
 *.db
 *.db-journal
