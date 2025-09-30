@@ -9,7 +9,7 @@ For a high-level overview of the project's architecture, please see the main [Ar
 The backend follows the principles of Clean Architecture to ensure a clear separation of concerns.
 
 - **/cmd/server**: The main entry point of the application.
-- **/internal/api**: Contains HTTP handlers and the router (`go-chi`).
+- **/internal/api**: Contains HTTP handlers, routing (`go-chi`), and API response models.
 - **/internal/service**: Holds the core business logic.
 - **/internal/repository**: Manages all data persistence via a `Repository` interface, with a concrete implementation for **SQLite**.
 - **/internal/database**: Contains logic for initializing the SQLite connection and schema.
@@ -28,42 +28,49 @@ The backend follows the principles of Clean Architecture to ensure a clear separ
 - **Dynamic & Self-Healing Configuration**: On first launch, the `SettingsService` discovers available Ollama models, selects one as a default, and saves the configuration. If no models are present, it will auto-configure itself later when a model becomes available.
 - **Per-Request Generation Parameters**: Allows clients to override LLM options (like temperature, seed) for each message.
 
-## Working with the API
+## API Documentation
 
 The API is documented using OpenAPI (Swagger). When the backend is running, you can access the interactive UI at:
-**[http://localhost:8000/swagger/index.html](http://localhost:8000/swagger/index.html)**
+**[http://localhost:8000/api/swagger/index.html](http://localhost:8000/api/swagger/index.html)**
 
-After making changes to the API handlers (adding or modifying routes/parameters), you must regenerate the documentation. Run this command from the `backend/` directory:
+After making changes to the API handlers (adding or modifying routes/parameters), you must regenerate the documentation. Run this command from the **project root**:
 ```sh
-swag init -g cmd/server/main.go
+make swag
 ```
+
+## Code Quality
+
+We use a suite of tools to maintain high code quality, all conveniently wrapped in `make` commands.
+
+- **To format all Go code:**
+  ```sh
+  make format
+  ```
+- **To run the linter and check for issues:**
+  ```sh
+  make lint
+  ```
 
 ## Testing
 
-The project contains a suite of integration tests that run against a real (but isolated) Ollama instance and an in-memory database.
+The project contains a suite of integration tests that run inside a fully containerized, isolated environment.
 
-To run all tests, navigate to the `backend/` directory and execute:
+To run all tests and generate an HTML coverage report, simply run the following command from the **project root**:
 ```sh
-go test -v ./...
+make test
 ```
-
-To generate an HTML coverage report:
-```sh
-# First, run tests and generate a profile
-go test -v -coverprofile=coverage.out -coverpkg=./... ./...
-
-# Then, open the report in your browser
-go tool cover -html=coverage.out```
+The report will be available at `coverage/coverage.html`.
 
 ## Running Locally (Without Docker)
 
-While the primary method is using Docker Compose, you can run the backend as a standalone service for development.
+While the primary method is using Docker Compose (`make dev`), you can run the backend as a standalone service.
 
-1.  Ensure you have Go (1.21+) installed and an Ollama instance running.
+1.  Ensure you have Go (1.22+) installed and an Ollama instance running.
 2.  Set the required environment variables:
     ```sh
     export DATABASE_PATH="./flow-dev.db"
     export OLLAMA_URL="http://localhost:11434"
+    export LOG_LEVEL="DEBUG"
     ```
 3.  Run the application from the `backend/` directory:
     ```sh

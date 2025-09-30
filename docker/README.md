@@ -1,13 +1,16 @@
 # Docker Infrastructure for Flow-AI
 
-This directory contains all Docker-related configurations for running the Flow-AI application. We use a flexible "base and override" model with Docker Compose to manage different environments easily.
+This directory contains all Docker-related configurations for running the Flow-AI application. We use a flexible "base and override" model with Docker Compose to manage different environments easily and safely.
 
 ## Core Concept: The "Base and Override" Model
 
 We follow the **DRY (Don't Repeat Yourself)** principle. Instead of having large, almost identical configuration files, we split them:
 
-- **`compose.base.yaml`**: This file is the skeleton of our application. It defines the core services (`flow-ai`, `ollama`), the network they share, and the data volumes. It is **always** used with an override file.
-- **Override Files (`compose.prod.yaml`, `compose.dev.yaml`, etc.)**: These files are small and contain **only the differences** for a specific environment. For example, `compose.dev.yaml` adds volume mounts for live code reloading, while `compose.prod.yaml` sets restart policies.
+- **`compose.base.yaml`**: This file is the skeleton of our application. It defines the core services (`flow-ai`, `ollama`), the network they share, and the data volumes. It is **never used alone** and always requires an override file.
+- **Override Files (`compose.prod.yaml`, `compose.dev.yaml`, etc.)**: These files are small and contain **only the differences** for a specific environment. For example:
+  - `compose.dev.yaml` uses a builder stage for live code reloading and exposes individual service ports.
+  - `compose.prod.yaml` builds a final, optimized image and exposes a single port through an Nginx reverse proxy.
+  - `compose.test.yaml` re-purposes the `flow-ai` service to act as a test runner instead of a web server.
 
 This approach makes the configuration clean, easy to maintain, and flexible.
 
@@ -15,7 +18,7 @@ This approach makes the configuration clean, easy to maintain, and flexible.
 
 ## How to Run
 
-All commands should be run from the **project's root directory**.
+All commands should be run from the **project's root directory** using the provided `Makefile`, which simplifies the Docker Compose commands.
 
 ### 1. Production Mode
 
@@ -23,42 +26,30 @@ This is the standard way to run the application for daily use. It builds a singl
 
 ```bash
 # Build and start the application in the background
-docker compose -f docker/compose.base.yaml -f docker/compose.prod.yaml up --build -d
+make prod
 ```
 
-The application will be available at `http://localhost:3000` (or the port you set in the `.env` file).
-
-#### Production with an NVIDIA GPU
-
-If you have an NVIDIA GPU, you can accelerate Ollama by adding the `compose.gpu.yaml` override file.
-
-```bash
-docker compose \
-  -f docker/compose.base.yaml \
-  -f docker/compose.prod.yaml \
-  -f docker/compose.gpu.yaml \
-  up --build -d
-```
+The application will be available at `http://localhost:3000`.
 
 ### 2. Development Mode
 
-This mode is for developers. It enables hot-reloading for the backend, allowing you to see code changes instantly without rebuilding the container.
+This mode is for developers. It enables hot-reloading for the frontend and allows you to restart the backend to see changes.
 
 ```bash
 # Start the development environment in the foreground
-docker compose -f docker/compose.base.yaml -f docker/compose.dev.yaml up --build
+make dev
 ```
 
-- The backend API will be available at `http://localhost:8000`.
-- **Note:** The frontend is not served in this mode. You should run it separately if needed.
+- **Backend API:** `http://localhost:8000/api/v1/`
+- **Frontend Vite Server:** `http://localhost:5173/`
 
 ### 3. Running Automated Tests
 
-This is the most important command for contributors. It runs the entire suite of integration tests in a clean, isolated environment and generates a code coverage report.
+This command runs the entire suite of integration tests in a clean, isolated environment and generates a code coverage report.
 
 ```bash
 # This single command builds, runs the tests, and cleans up automatically.
-HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose -f docker/compose.base.yaml -f docker/compose.test.yaml up --build --abort-on-container-exit
+make test
 ```
 
 After the command finishes, a `coverage/` directory will appear in the project root. Open `coverage/coverage.html` in your browser to see a detailed report.
@@ -67,16 +58,13 @@ After the command finishes, a `coverage/` directory will appear in the project r
 
 When Docker creates files inside a volume (like our coverage reports), those files are owned by the `root` user by default. This can cause permission problems on your host machine.
 
-By passing `HOST_UID=$(id -u)` and `HOST_GID=$(id -g)`, we tell our test runner script to change the owner of the generated files to match your current user. This avoids all permission issues.
+Our `Makefile` and `test_runner.sh` script automatically handle this by passing your local user's UID and GID into the container. The script then uses `chown` to change the owner of the generated files to match your user, avoiding all permission issues.
 
 ### Stopping the Application
 
-To stop an environment, use the `down` command with the same files you used to start it.
+To stop all environments, remove all containers, and clean up associated volumes, use the `down` command.
 
 ```bash
-# Stop the production containers
-docker compose -f docker/compose.base.yaml -f docker/compose.prod.yaml down
-
-# To stop AND delete all data (database and models), add the -v flag
-docker compose -f docker/compose.base.yaml -f docker/compose.prod.yaml down -v
+# Stop and remove everything
+make down
 ```
