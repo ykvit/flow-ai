@@ -7,10 +7,10 @@ services:
       target: builder-backend
     working_dir: /src
     environment:
-      - HOST_UID=${HOST_UID}
-      - HOST_GID=${HOST_GID}
-      - LOG_LEVEL=DEBUG
-      - DATABASE_PATH=/src/flow-test.db
+      HOST_UID: ${HOST_UID}
+      HOST_GID: ${HOST_GID}
+      LOG_LEVEL: "DEBUG"
+      DATABASE_PATH: "/src/flow-test.db"
     volumes:
       - ../backend:/src
       - ../coverage:/reports
@@ -25,7 +25,7 @@ services:
       target: builder-frontend
     working_dir: /app
     environment:
-      - NODE_ENV=test
+      NODE_ENV: "test"
     volumes:
       - ../frontend:/app
       - frontend_node_modules_test:/app/node_modules

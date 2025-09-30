@@ -12,8 +12,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - LOG_LEVEL=DEBUG
-      - DATABASE_PATH=/src/flow-dev.db
+      LOG_LEVEL: "DEBUG"
+      DATABASE_PATH: "/src/flow-dev.db"
 
   frontend:
     container_name: flow-ai-frontend-dev
@@ -37,6 +37,3 @@ services:
 
 volumes:
   frontend_node_modules: {}
-  ollama-data:
-    name: ollama
-    external: true
