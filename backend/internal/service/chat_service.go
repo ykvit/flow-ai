@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,10 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"flow-ai/backend/internal/llm"
 	"flow-ai/backend/internal/model"
 	"flow-ai/backend/internal/repository"
+
+	"github.com/google/uuid"
 )
 
 // ChatService handles the core business logic for chat operations.
@@ -25,19 +27,19 @@ type ChatService struct {
 
 // CreateMessageRequest is the DTO for creating a new message.
 type CreateMessageRequest struct {
-	ChatID       string             `json:"chat_id"`
-	Content      string             `json:"content"`
-	Model        string             `json:"model"`
-	SystemPrompt string             `json:"system_prompt"`
-	SupportModel string             `json:"support_model"`
+	ChatID       string              `json:"chat_id"`
+	Content      string              `json:"content"`
+	Model        string              `json:"model"`
+	SystemPrompt string              `json:"system_prompt"`
+	SupportModel string              `json:"support_model"`
 	Options      *llm.RequestOptions `json:"options,omitempty"`
 }
 
 // RegenerateMessageRequest is the DTO for regenerating a message.
 type RegenerateMessageRequest struct {
-	ChatID       string             `json:"chat_id"` // Included for context
-	Model        string             `json:"model"`
-	SystemPrompt string             `json:"system_prompt"`
+	ChatID       string              `json:"chat_id"` // Included for context
+	Model        string              `json:"model"`
+	SystemPrompt string              `json:"system_prompt"`
 	Options      *llm.RequestOptions `json:"options,omitempty"`
 }
 
@@ -186,7 +188,11 @@ func (s *ChatService) HandleNewMessage(
 	var finalContext json.RawMessage
 	var finalStats *llm.GenerationStats
 	llmStreamChan := make(chan llm.StreamResponse)
-	go s.llm.GenerateStream(ctx, llmReq, llmStreamChan)
+	go func() {
+		if err := s.llm.GenerateStream(ctx, llmReq, llmStreamChan); err != nil {
+			slog.Error("LLM stream generation failed", "error", err)
+		}
+	}()
 
 	for chunk := range llmStreamChan {
 		modelChunk := model.StreamResponse{Content: chunk.Content, Done: chunk.Done, Context: chunk.Context, Error: chunk.Error}
@@ -266,7 +272,11 @@ func (s *ChatService) RegenerateMessage(
 		streamChan <- model.StreamResponse{Error: "Database error"}
 		return
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			slog.Error("Failed to rollback regeneration transaction", "error", err)
+		}
+	}()
 
 	originalMsg, err := s.repo.GetMessageByID(ctx, originalAssistantMessageID)
 	if err != nil || originalMsg.Role != "assistant" || originalMsg.ParentID == nil {
@@ -304,7 +314,11 @@ func (s *ChatService) RegenerateMessage(
 	var finalContext json.RawMessage
 	var finalStats *llm.GenerationStats
 	llmStreamChan := make(chan llm.StreamResponse)
-	go s.llm.GenerateStream(ctx, llmReq, llmStreamChan)
+	go func() {
+		if err := s.llm.GenerateStream(ctx, llmReq, llmStreamChan); err != nil {
+			slog.Error("LLM stream regeneration failed", "error", err)
+		}
+	}()
 
 	for chunk := range llmStreamChan {
 		streamChan <- model.StreamResponse{Content: chunk.Content, Done: chunk.Done, Error: chunk.Error}
@@ -424,7 +438,7 @@ func cleanRawTitle(s string) string {
 	s = strings.Split(s, "<think>")[0]
 	s = strings.TrimPrefix(s, "```json")
 	s = strings.TrimSuffix(s, "```")
-	return strings.Trim(s, ` "'\n\t`)
+	return strings.TrimSpace(s)
 }
 
 func truncate(s string, n int) string {

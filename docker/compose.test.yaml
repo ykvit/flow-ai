@@ -1,0 +1,26 @@
+services:
+  flow-ai:
+    container_name: flow-ai-backend-tester
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: builder-backend
+    working_dir: /src
+    environment:
+      - HOST_UID=${HOST_UID}
+      - HOST_GID=${HOST_GID}
+      - LOG_LEVEL=DEBUG
+
+    volumes:
+      - ../backend:/src
+      - ../coverage:/reports
+      - ./test_runner.sh:/test_runner.sh
+    
+    command: sh /test_runner.sh
+
+  ollama:
+    volumes:
+      - ollama_test_data:/root/.ollama
+
+volumes:
+  ollama_test_data: {}

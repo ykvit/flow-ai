@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"flow-ai/backend/internal/model"
@@ -88,7 +89,11 @@ func (r *sqliteRepository) AddMessage(ctx context.Context, message *model.Messag
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			slog.Error("Failed to rollback transaction", "error", err)
+		}
+	}()
 
 	if err := r.AddMessageTx(ctx, tx, message, chatID); err != nil {
 		return fmt.Errorf("could not add message transactionally: %w", err)
@@ -135,17 +140,14 @@ func (r *sqliteRepository) GetMessageByID(ctx context.Context, messageID string)
 	return &msg, nil
 }
 
-// GetActiveMessagesByChatID is the public non-transactional method.
 func (r *sqliteRepository) GetActiveMessagesByChatID(ctx context.Context, chatID string) ([]model.Message, error) {
 	return r.getActiveMessagesByChatID(ctx, r.db, chatID)
 }
 
-// GetActiveMessagesByChatIDTx is the public transactional method.
 func (r *sqliteRepository) GetActiveMessagesByChatIDTx(ctx context.Context, tx *sql.Tx, chatID string) ([]model.Message, error) {
 	return r.getActiveMessagesByChatID(ctx, tx, chatID)
 }
 
-// getActiveMessagesByChatID is a private helper that works with both *sql.DB and *sql.Tx.
 func (r *sqliteRepository) getActiveMessagesByChatID(ctx context.Context, q queryable, chatID string) ([]model.Message, error) {
 	query := `
 		SELECT id, parent_id, role, content, model, timestamp, metadata, context
@@ -185,7 +187,6 @@ func (r *sqliteRepository) getActiveMessagesByChatID(ctx context.Context, q quer
 	}
 	return messages, nil
 }
-
 
 func (r *sqliteRepository) GetLastActiveMessage(ctx context.Context, chatID string) (*model.Message, error) {
 	query := `

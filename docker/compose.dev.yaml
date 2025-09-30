@@ -1,0 +1,41 @@
+services:
+  flow-ai:
+    container_name: flow-ai-backend-dev
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: builder-backend 
+    command: go run ./cmd/server
+    volumes:
+      - ../backend:/src
+    ports:
+      - "8000:8000"
+    working_dir: /src
+    environment:
+      - DATABASE_PATH=/src/flow-dev.db
+      - OLLAMA_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - LOG_LEVEL=DEBUG
+
+  frontend:
+    container_name: flow-ai-frontend-dev
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: builder-frontend
+    command: npm run dev -- --host
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules 
+    ports:
+      - "5173:5173"
+    networks:
+      - flow-ai-net 
+
+  ollama:
+    ports:
+      - "11434:11434"
+
+volumes:
+  ollama-data:
+    name: ollama 
+    external: true

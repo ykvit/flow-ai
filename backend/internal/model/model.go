@@ -35,8 +35,8 @@ type FullChat struct {
 
 // StreamResponse is the structure for a single chunk in a streaming response.
 type StreamResponse struct {
-	Content string `json:"content" example:"Hello"`
-	Done    bool   `json:"done" example:"false"`
+	Content string          `json:"content" example:"Hello"`
+	Done    bool            `json:"done" example:"false"`
 	Context json.RawMessage `json:"context,omitempty" swaggertype:"object"`
 	Error   string          `json:"error,omitempty"`
 }

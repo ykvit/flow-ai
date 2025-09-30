@@ -56,12 +56,12 @@ func NewOllamaProvider(url string) LLMProvider {
 
 // RequestOptions holds optional parameters for a generation request.
 type RequestOptions struct {
-	Temperature *float32 `json:"temperature,omitempty"`
-	TopK        *int     `json:"top_k,omitempty"`
-	TopP        *float32 `json:"top_p,omitempty"`
-	System      *string  `json:"system,omitempty"`
+	Temperature   *float32 `json:"temperature,omitempty"`
+	TopK          *int     `json:"top_k,omitempty"`
+	TopP          *float32 `json:"top_p,omitempty"`
+	System        *string  `json:"system,omitempty"`
 	RepeatPenalty *float32 `json:"repeat_penalty,omitempty"`
-	Seed        *int     `json:"seed,omitempty"`
+	Seed          *int     `json:"seed,omitempty"`
 }
 
 type GenerateRequest struct {
@@ -118,57 +118,65 @@ type ModelInfo struct {
 // --- ollamaProvider methods ---
 
 func (p *ollamaProvider) Generate(ctx context.Context, req *GenerateRequest) (*GenerateResponse, error) {
-    req.Stream = false
-    body, err := json.Marshal(req)
-    if err != nil { return nil, fmt.Errorf("could not marshal request: %w", err) }
-    
-    endpoint := p.url + "/api/chat"
-    // Use /api/generate only if there's a single prompt and no messages.
-    if len(req.Messages) == 0 && req.Prompt != "" {
-        endpoint = p.url + "/api/generate"
-    }
+	req.Stream = false
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal request: %w", err)
+	}
 
-    httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(body))
-    if err != nil { return nil, fmt.Errorf("could not create http request: %w", err) }
-    httpReq.Header.Set("Content-Type", "application/json")
-    resp, err := p.client.Do(httpReq)
-    if err != nil { return nil, fmt.Errorf("http request failed: %w", err) }
-    defer resp.Body.Close()
-    
-    if resp.StatusCode != http.StatusOK {
-        bodyBytes, _ := io.ReadAll(resp.Body)
-        return nil, fmt.Errorf("api returned non-200 status %d: %s", resp.StatusCode, string(bodyBytes))
-    }
-    
-    bodyBytes, err := io.ReadAll(resp.Body)
-    if err != nil { return nil, fmt.Errorf("could not read response body: %w", err) }
-    
-    // --- ROBUST RESPONSE PARSING ---
-    
-    // Attempt to parse as a chat response first
-    type ollamaChatResponse struct {
-        Message Message `json:"message"`
-        // Other fields we don't need here...
-    }
-    var chatResp ollamaChatResponse
-    if err := json.Unmarshal(bodyBytes, &chatResp); err == nil && chatResp.Message.Content != "" {
-        return &GenerateResponse{
-            Response: chatResp.Message.Content,
-        }, nil
-    }
+	endpoint := p.url + "/api/chat"
+	// Use /api/generate only if there's a single prompt and no messages.
+	if len(req.Messages) == 0 && req.Prompt != "" {
+		endpoint = p.url + "/api/generate"
+	}
 
-    // If chat parsing fails, attempt to parse as a generate response
-    type ollamaGenerateResponse struct {
-        Response string `json:"response"`
-    }
-    var genResp ollamaGenerateResponse
-    if err := json.Unmarshal(bodyBytes, &genResp); err == nil {
-        return &GenerateResponse{
-            Response: genResp.Response,
-        }, nil
-    }
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, fmt.Errorf("could not create http request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	resp, err := p.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
 
-    return nil, fmt.Errorf("could not decode response from Ollama: %s", string(bodyBytes))
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("api returned non-200 status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("could not read response body: %w", err)
+	}
+
+	// --- ROBUST RESPONSE PARSING ---
+
+	// Attempt to parse as a chat response first
+	type ollamaChatResponse struct {
+		Message Message `json:"message"`
+		// Other fields we don't need here...
+	}
+	var chatResp ollamaChatResponse
+	if err := json.Unmarshal(bodyBytes, &chatResp); err == nil && chatResp.Message.Content != "" {
+		return &GenerateResponse{
+			Response: chatResp.Message.Content,
+		}, nil
+	}
+
+	// If chat parsing fails, attempt to parse as a generate response
+	type ollamaGenerateResponse struct {
+		Response string `json:"response"`
+	}
+	var genResp ollamaGenerateResponse
+	if err := json.Unmarshal(bodyBytes, &genResp); err == nil {
+		return &GenerateResponse{
+			Response: genResp.Response,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("could not decode response from Ollama: %s", string(bodyBytes))
 }
 
 func (p *ollamaProvider) GenerateStream(ctx context.Context, req *GenerateRequest, ch chan<- StreamResponse) error {
@@ -197,7 +205,7 @@ func (p *ollamaProvider) GenerateStream(ctx context.Context, req *GenerateReques
 
 	// This struct helps decode both streaming content and the final stats block.
 	type ollamaStreamChunk struct {
-		Message            struct { Content string } `json:"message"`
+		Message            struct{ Content string } `json:"message"`
 		Model              string                   `json:"model"`
 		Done               bool                     `json:"done"`
 		Context            json.RawMessage          `json:"context"`
@@ -247,7 +255,6 @@ func (p *ollamaProvider) GenerateStream(ctx context.Context, req *GenerateReques
 	}
 	return scanner.Err()
 }
-
 
 func (p *ollamaProvider) ListModels(ctx context.Context) (*ListModelsResponse, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", p.url+"/api/tags", nil)

@@ -1,4 +1,16 @@
-# logs
+# =============================================================================
+# General
+# =============================================================================
+
+# Operating System files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+._*
+*.swp
+*.swo
+
+# Log files
 logs
 *.log
 npm-debug.log*
@@ -7,14 +19,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# ОС
-.DS_Store
-Thumbs.db
-ehthumbs.db
-._*
-*.swp
+# Temporary files
+*.tmp
+*.temp
+*~
 
-# IDE
+# IDEs & Editors
 .idea/
 .vscode/*
 !.vscode/extensions.json
@@ -24,37 +34,51 @@ ehthumbs.db
 *.sublime-project
 *.sublime-workspace
 nbproject/
+.history/
+.tags
 
-*.tmp
-*.temp
-*~
+# Project-specific Artifacts
 
+## Go specific
+# Compiled binaries
+backend/server
+*.exe
+*.exe~
+
+## Node / Frontend specific
 node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/out/
+frontend/.output/
+frontend/.vite-inspect/
+frontend/.vite/
+frontend/.npm/
+frontend/.yarn/
 
+## Test & Coverage Reports
+coverage/
+*.lcov
+.nyc_output/
 
+## Local Development Database (SQLite WAL files)
+backend/flow-dev.db*
+
+## Production database folder (should be empty in repo)
+backend/data/
+backend/flow-dev.db-wal
+backend/flow-dev.db-shm
+
+# =============================================================================
+# Local Environment Configuration
+#
+# These files contain secrets and local overrides. They should never be
+# committed to the repository. An example file should be provided instead.
+# =============================================================================
 .env
 .env.local
 .env.*.local
 .env.*
-
 !/.env.example
 !/.env.*.example
-
-app/dist/
-app/build/
-app/out/
-app/.output/
-app/.vite-inspect/
-
-app/.vite/
-
-
-backend/data/*
-backend/data/*.db
-backend/data/*.db-journal
-
-backend/dist/
-backend/build/
-
-coverage/
-*.lcov
