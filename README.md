@@ -86,18 +86,48 @@ The development environment enables features like frontend hot-reloading.
 
 ### Useful Makefile Commands
 
-Our `Makefile` provides simple commands for all common development tasks. Run `make` to see all available commands.
+Our `Makefile` provides simple commands for all common development tasks. Run `make` or `make help` to see a full, categorized list of available commands.
+
+#### Main Commands
 
 | Command | Description |
 | :--- | :--- |
-| `make dev` | Starts the development environment. |
-| `make prod` | Starts the production environment. |
-| `make test` | Runs all integration tests in an isolated Docker environment. |
-| `make down` | Stops and removes all project containers, networks, and volumes. |
-| `make logs` | Tails the logs from the running development environment. |
-| `make swag` | Regenerates the Swagger/OpenAPI documentation. |
-| `make lint` | Runs the Go linter (`golangci-lint`) to check code quality. |
-| `make format` | Automatically formats all Go source code using `goimports`. |
+| `make dev` | 🚀 Starts the development environment (CPU). |
+| `make prod` | 🚢 Starts the production environment (CPU). |
+| `make test` | 🧪 Runs all integration tests using the cache for speed. |
+| `make logs` | 📜 Tails the logs from the running development environment. |
+
+#### GPU-Accelerated Commands
+
+These are convenient aliases for running the main commands with GPU support enabled for Ollama.
+
+| Command | Description |
+| :--- | :--- |
+| `make dev-gpu` | 🚀 Starts the development environment with GPU support. |
+| `make prod-gpu` | 🚢 Starts the production environment with GPU support. |
+| `make test-gpu` | 🧪 Runs all integration tests with GPU support. |
+
+#### Code Quality & Docs
+
+| Command | Description |
+| :--- | :--- |
+| `make swag` | 📄 Regenerates the Swagger/OpenAPI documentation. |
+| `make lint` | 🔍 Runs the Go linter (`golangci-lint`) to check code quality. |
+| `make format` | ✨ Automatically formats all Go source code using `goimports`. |
+
+#### Cleanup Commands
+
+| Command | Description |
+| :--- | :--- |
+| `make down-dev` | ⏹️ Stops and cleans up only the **DEV** environment. |
+| `make down-prod`| ⏹️ Stops and cleans up only the **PROD** environment. |
+| `make down` | ☢️ **Stops and cleans up ALL** project containers and volumes. |
+
+#### CI-Specific Commands
+
+| Command | Description |
+| :--- | :--- |
+| `make test-ci`| 🤖 Runs tests for CI (no cache, ensures a clean build). |
 
 ## 📚 API Documentation
 
