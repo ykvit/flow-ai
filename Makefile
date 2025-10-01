@@ -1,53 +1,33 @@
-# ====================================================================================
-# Makefile for the Flow-AI Project (v3.1)
-#
+# Makefile for the Flow-AI Project
 # Provides a simple and consistent interface for development, testing, and deployment tasks.
-# ====================================================================================
 
-# Use bash for all shell commands
 SHELL := /bin/bash
-
-# Get the host user's UID and GID to fix file permissions from Docker.
 HOST_UID := $(shell id -u)
 HOST_GID := $(shell id -g)
 
-# Define the Docker Compose file configurations for each environment.
 COMPOSE_BASE_FILE := -f docker/compose.base.yaml
 COMPOSE_DEV_FILE  := -f docker/compose.dev.yaml
 COMPOSE_PROD_FILE := -f docker/compose.prod.yaml
 COMPOSE_TEST_FILE := -f docker/compose.test.yaml
 
-# --- GPU Support ---
-# Conditionally add the GPU compose file if GPU=1 is passed.
 COMPOSE_GPU :=
 ifeq ($(GPU),1)
 	COMPOSE_GPU := -f docker/compose.gpu.yaml
 endif
-# --------------------
 
-# Define the full docker compose commands, now including optional GPU support.
 COMPOSE_DEV_CMD  := docker compose $(COMPOSE_BASE_FILE) $(COMPOSE_DEV_FILE) $(COMPOSE_GPU)
 COMPOSE_PROD_CMD := docker compose $(COMPOSE_BASE_FILE) $(COMPOSE_PROD_FILE) $(COMPOSE_GPU)
 COMPOSE_TEST_CMD := docker compose $(COMPOSE_BASE_FILE) $(COMPOSE_TEST_FILE) $(COMPOSE_GPU)
 
-# The 'flow-ai' service is used as a runner for Go commands.
-GO_RUNNER_SERVICE := flow-ai
+BACKEND_SERVICE_NAME := flow-ai
+FRONTEND_SERVICE_NAME := frontend
 
-.PHONY: help dev prod test down logs swag lint format dev-gpu prod-gpu test-gpu down-dev down-prod down-test test-ci
-
-# Set the default goal to 'help'.
+.PHONY: help dev prod down logs swag lint format dev-gpu prod-gpu down-dev down-prod down-test test test-backend test-frontend test-ci
 .DEFAULT_GOAL := help
 
 ##@ Main Commands
 help: ##> 📖 Show this help message with sections.
-	@awk 'BEGIN {FS = ":.*?##> "} \
-	/^##@/ { \
-		printf("\n\033[1;33m%s\033[0m\n", substr($$0, 5)); \
-		next; \
-	} \
-	/^[a-zA-Z0-9_.-]+:.*?##> / { \
-		printf("  \033[36m%-18s\033[0m %s\n", $$1, $$2); \
-	}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?##> "} /^##@/ { printf("\n\033[1;33m%s\033[0m\n", substr($$0, 5)); next; } /^[a-zA-Z0-9_.-]+:.*?##> / { printf("  \033[36m%-20s\033[0m %s\n", $$1, $$2); }' $(MAKEFILE_LIST)
 
 dev: ##> 🚀 Start the development environment (CPU).
 	@echo "--- Starting development environment (CPU) ---"
@@ -57,16 +37,31 @@ prod: ##> 🚢 Start the production environment (CPU).
 	@echo "--- Starting production environment (CPU) ---"
 	$(COMPOSE_PROD_CMD) up --build -d
 
-test: ##> 🧪 Run all integration tests (CPU, uses cache).
-	@echo "--- Running integration tests (CPU) ---"
-	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) up \
-		--build \
-		--abort-on-container-exit \
-		--exit-code-from $(GO_RUNNER_SERVICE)
-
 logs: ##> 📜 View logs from the development environment.
 	@echo "--- Tailing logs for development environment ---"
 	$(COMPOSE_DEV_CMD) logs -f
+
+##@ Testing
+test: ##> 🧪 Run all available tests for the project (backend & frontend).
+	@$(MAKE) test-backend
+	@echo "\nNote: Frontend tests are not yet implemented. Structure is ready."
+	# @$(MAKE) test-frontend # Uncomment when frontend tests are available
+
+test-backend: ##> 🧪 (Backend) Run Go integration tests.
+	@echo "--- Running Go integration tests (CPU) ---"
+	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) up \
+		--build \
+		--abort-on-container-exit \
+		--exit-code-from $(BACKEND_SERVICE_NAME) \
+		$(BACKEND_SERVICE_NAME) # CORRECTED: Explicitly specify which service to run
+
+test-frontend: ##> 🧪 (Frontend) Run frontend tests.
+	@echo "--- Running frontend tests (CPU) ---"
+	$(COMPOSE_TEST_CMD) up \
+		--build \
+		--abort-on-container-exit \
+		--exit-code-from $(FRONTEND_SERVICE_NAME) \
+		$(FRONTEND_SERVICE_NAME) # CORRECTED: Explicitly specify which service to run
 
 ##@ GPU Aliases
 dev-gpu: ##> 🚀 (GPU) Start the development environment.
@@ -74,9 +69,6 @@ dev-gpu: ##> 🚀 (GPU) Start the development environment.
 
 prod-gpu: ##> 🚢 (GPU) Start the production environment.
 	@$(MAKE) prod GPU=1
-
-test-gpu: ##> 🧪 (GPU) Run integration tests.
-	@$(MAKE) test GPU=1
 
 ##@ Teardown
 down-dev: ##> ⏹️ Stop and clean up the DEV environment.
@@ -98,24 +90,23 @@ down: ##> ☢️ Stop and clean up ALL environments.
 	@$(MAKE) down-test
 
 ##@ CI-Specific Commands
-test-ci: ##> 🤖 Run tests for CI (no cache, ensures clean build).
+test-ci: ##> 🤖 (Backend) Run tests for CI (no cache).
 	@echo "--- Running CI integration tests (no cache) ---"
 	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) up \
 		--build --no-cache \
 		--abort-on-container-exit \
-		--exit-code-from $(GO_RUNNER_SERVICE)
+		--exit-code-from $(BACKEND_SERVICE_NAME) \
+		$(BACKEND_SERVICE_NAME) # CORRECTED: Explicitly specify which service to run
 
 ##@ Code Quality & Docs
 swag: ##> 📄 Regenerate Swagger/OpenAPI documentation.
 	@echo "--- Regenerating Swagger documentation ---"
-	@$(COMPOSE_DEV_CMD) run --rm $(GO_RUNNER_SERVICE) sh -c \
-		"swag init -g backend/cmd/server/main.go && chown -R $(HOST_UID):$(HOST_GID) docs"
-	@echo "Swagger docs generated in backend/docs/"
+	@$(COMPOSE_DEV_CMD) run --build --rm $(BACKEND_SERVICE_NAME) sh -c "swag init -g ./cmd/server/main.go && chown -R $(HOST_UID):$(HOST_GID) docs"
 
-lint: ##> 🔍 Run the Go linter (golangci-lint) to check code quality.
+lint: ##> 🔍 Run the Go linter (golangci-lint).
 	@echo "--- Running Go linter ---"
-	@$(COMPOSE_DEV_CMD) run --rm $(GO_RUNNER_SERVICE) golangci-lint run ./...
+	@$(COMPOSE_DEV_CMD) run --build --rm $(BACKEND_SERVICE_NAME) golangci-lint run ./...
 
 format: ##> ✨ Automatically format all Go source code.
 	@echo "--- Formatting Go code ---"
-	@$(COMPOSE_DEV_CMD) run --rm $(GO_RUNNER_SERVICE) goimports -w .
+	@$(COMPOSE_DEV_CMD) run --build --rm $(BACKEND_SERVICE_NAME) goimports -w .

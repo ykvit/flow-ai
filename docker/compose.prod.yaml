@@ -1,17 +1,16 @@
 services:
   flow-ai:
-    container_name: flow-ai-app
     build:
       context: ..
       dockerfile: Dockerfile
+      target: final
     ports:
       - "${APP_PORT:-3000}:80"
     restart: unless-stopped
+    networks:
+      - flow-ai-net
 
   ollama:
     restart: unless-stopped
-
-volumes:
-  ollama-data:
-    name: ollama
-    external: true
+    networks:
+      - flow-ai-net

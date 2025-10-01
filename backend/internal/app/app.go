@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/viper"
+
 	"flow-ai/backend/internal/api"
 	"flow-ai/backend/internal/config"
 	"flow-ai/backend/internal/database"
@@ -17,19 +19,20 @@ import (
 	"flow-ai/backend/internal/service"
 )
 
-// Run initializes and starts the application. It returns an exit code.
 func Run() int {
-	setupLogger()
-
-	bootstrapCfg, err := config.LoadBootstrapConfig()
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		slog.Error("Failed to load bootstrap configuration", "error", err)
+		slog.Error("Failed to load configuration", "error", err)
 		return 1
 	}
 
-	waitForOllama(bootstrapCfg.OllamaURL)
+	setupLogger(cfg.LogLevel)
 
-	db, err := database.InitDB(bootstrapCfg.DatabasePath)
+	logConfigSource()
+
+	waitForOllama(cfg.OllamaURL)
+
+	db, err := database.InitDB(cfg.DatabasePath)
 	if err != nil {
 		slog.Error("Failed to initialize database", "error", err)
 		return 1
@@ -38,11 +41,10 @@ func Run() int {
 	slog.Info("Successfully connected to SQLite database.")
 
 	repo := repository.NewSQLiteRepository(db)
-	ollamaProvider := llm.NewOllamaProvider(bootstrapCfg.OllamaURL)
-
+	ollamaProvider := llm.NewOllamaProvider(cfg.OllamaURL)
 	settingsService := service.NewSettingsService(db, ollamaProvider)
 
-	appSettings, err := settingsService.InitAndGet(context.Background(), bootstrapCfg.SystemPrompt)
+	appSettings, err := settingsService.InitAndGet(context.Background(), cfg.InitialSystemPrompt)
 	if err != nil {
 		slog.Error("Failed to initialize application settings", "error", err)
 		return 1
@@ -73,9 +75,18 @@ func Run() int {
 	return 0
 }
 
-func setupLogger() {
+func logConfigSource() {
+	configFileUsed := viper.ConfigFileUsed()
+	if configFileUsed != "" {
+		slog.Info("Successfully loaded configuration from file.", "file", configFileUsed)
+	} else {
+		slog.Info("Configuration file not found. Using environment variables and defaults.")
+	}
+}
+
+func setupLogger(logLevel string) {
 	var level slog.Level
-	switch strings.ToUpper(os.Getenv("LOG_LEVEL")) {
+	switch strings.ToUpper(logLevel) {
 	case "DEBUG":
 		level = slog.LevelDebug
 	case "WARN":
@@ -105,7 +116,7 @@ func waitForOllama(ollamaURL string) {
 		if resp != nil {
 			resp.Body.Close()
 		}
-		slog.Debug("Ollama not ready yet, retrying in 3 seconds...")
+		slog.Debug("Ollama not ready yet, retrying in 3 seconds...", "url", ollamaURL)
 		time.Sleep(3 * time.Second)
 	}
 }

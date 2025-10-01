@@ -1,10 +1,12 @@
 services:
   flow-ai:
+    env_file:
+      - ../.env
     environment:
-      - OLLAMA_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
-      - DATABASE_PATH=${DATABASE_PATH:-/data/flow.db}
-      - INITIAL_SYSTEM_PROMPT=You are a helpful assistant.
-      - LOG_LEVEL=INFO
+      OLLAMA_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      DATABASE_PATH: ${DATABASE_PATH:-/data/flow.db}
+      INITIAL_SYSTEM_PROMPT: "You are a helpful assistant. Always respond in Markdown format."
+      LOG_LEVEL: "INFO"
     volumes:
       - flow-ai-data:/data
     networks:
@@ -14,7 +16,6 @@ services:
 
   ollama:
     image: ollama/ollama
-    container_name: flow-ai-ollama
     volumes:
       - ollama-data:/root/.ollama
     networks:
@@ -28,3 +29,5 @@ networks:
 volumes:
   flow-ai-data:
   ollama-data:
+    name: ollama
+    external: true
