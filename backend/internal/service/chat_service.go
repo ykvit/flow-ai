@@ -27,20 +27,29 @@ type ChatService struct {
 
 // CreateMessageRequest is the DTO for creating a new message.
 type CreateMessageRequest struct {
-	ChatID       string              `json:"chat_id"`
-	Content      string              `json:"content"`
-	Model        string              `json:"model"`
-	SystemPrompt string              `json:"system_prompt"`
-	SupportModel string              `json:"support_model"`
-	Options      *llm.RequestOptions `json:"options,omitempty"`
+	// The ID of an existing chat. If omitted, a new chat will be created.
+	ChatID string `json:"chat_id,omitempty" example:"4b3b5a34-571f-47e3-abd1-a7dbee9d92fe"`
+	// The content of the user's message.
+	Content string `json:"content" example:"What is the difference between SQL and NoSQL databases?"`
+	// The model to use for this specific message. Overrides the global setting.
+	Model string `json:"model,omitempty" example:"qwen3:8b"`
+	// A system prompt for this specific message. Overrides the global setting.
+	SystemPrompt string `json:"system_prompt,omitempty"`
+	// A support model for this specific message. Overrides the global setting.
+	SupportModel string `json:"support_model,omitempty"`
+	// Additional generation options for this request.
+	Options *llm.RequestOptions `json:"options,omitempty"`
 }
 
 // RegenerateMessageRequest is the DTO for regenerating a message.
 type RegenerateMessageRequest struct {
-	ChatID       string              `json:"chat_id"` // Included for context
-	Model        string              `json:"model"`
-	SystemPrompt string              `json:"system_prompt"`
-	Options      *llm.RequestOptions `json:"options,omitempty"`
+	ChatID string `json:"chat_id,omitempty"` // Included for context
+	// The model to use for the regenerated response. Overrides the global setting.
+	Model string `json:"model,omitempty" example:"mistral:7b"`
+	// A system prompt for the regenerated response. Overrides the global setting.
+	SystemPrompt string `json:"system_prompt,omitempty"`
+	// New generation options. For example, use a higher temperature for a more creative answer.
+	Options *llm.RequestOptions `json:"options,omitempty"`
 }
 
 func NewChatService(repo repository.Repository, llm llm.LLMProvider, settingsService *SettingsService) *ChatService {

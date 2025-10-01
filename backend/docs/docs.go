@@ -11,7 +11,7 @@ const docTemplate = `{
         "title": "{{.Title}}",
         "contact": {
             "name": "API Support",
-            "url": "https://github.com/ykvit/flow-ai"
+            "url": "https://github.com/ykvit/flow-ai/issues"
         },
         "license": {
             "name": "MIT",
@@ -520,7 +520,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "My Custom Chat Title"
                 }
             }
         },
@@ -528,7 +529,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "mistral:7b"
                 }
             }
         },
@@ -575,7 +577,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "mistral:7b"
                 },
                 "stream": {
                     "type": "boolean"
@@ -606,22 +609,34 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "repeat_penalty": {
-                    "type": "number"
+                    "description": "Helps prevent the model from repeating itself. (e.g., 1.1)",
+                    "type": "number",
+                    "example": 1.1
                 },
                 "seed": {
-                    "type": "integer"
+                    "description": "Use a specific seed for reproducible outputs.",
+                    "type": "integer",
+                    "example": 42
                 },
                 "system": {
-                    "type": "string"
+                    "description": "A system prompt specific to this request.",
+                    "type": "string",
+                    "example": "You are a senior database administrator."
                 },
                 "temperature": {
-                    "type": "number"
+                    "description": "Controls randomness. Higher values increase creativity. (e.g., 0.7)",
+                    "type": "number",
+                    "example": 0.7
                 },
                 "top_k": {
-                    "type": "integer"
+                    "description": "Reduces the probability of generating nonsense. (e.g., 40)",
+                    "type": "integer",
+                    "example": 40
                 },
                 "top_p": {
-                    "type": "number"
+                    "description": "Works together with temperature. (e.g., 0.9)",
+                    "type": "number",
+                    "example": 0.9
                 }
             }
         },
@@ -629,7 +644,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "qwen3:8b"
                 }
             }
         },
@@ -752,21 +768,34 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "chat_id": {
-                    "type": "string"
+                    "description": "The ID of an existing chat. If omitted, a new chat will be created.",
+                    "type": "string",
+                    "example": "4b3b5a34-571f-47e3-abd1-a7dbee9d92fe"
                 },
                 "content": {
-                    "type": "string"
+                    "description": "The content of the user's message.",
+                    "type": "string",
+                    "example": "What is the difference between SQL and NoSQL databases?"
                 },
                 "model": {
-                    "type": "string"
+                    "description": "The model to use for this specific message. Overrides the global setting.",
+                    "type": "string",
+                    "example": "qwen3:8b"
                 },
                 "options": {
-                    "$ref": "#/definitions/llm.RequestOptions"
+                    "description": "Additional generation options for this request.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/llm.RequestOptions"
+                        }
+                    ]
                 },
                 "support_model": {
+                    "description": "A support model for this specific message. Overrides the global setting.",
                     "type": "string"
                 },
                 "system_prompt": {
+                    "description": "A system prompt for this specific message. Overrides the global setting.",
                     "type": "string"
                 }
             }
@@ -779,12 +808,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "model": {
-                    "type": "string"
+                    "description": "The model to use for the regenerated response. Overrides the global setting.",
+                    "type": "string",
+                    "example": "mistral:7b"
                 },
                 "options": {
-                    "$ref": "#/definitions/llm.RequestOptions"
+                    "description": "New generation options. For example, use a higher temperature for a more creative answer.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/llm.RequestOptions"
+                        }
+                    ]
                 },
                 "system_prompt": {
+                    "description": "A system prompt for the regenerated response. Overrides the global setting.",
                     "type": "string"
                 }
             }
@@ -793,27 +830,47 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "main_model": {
-                    "type": "string"
+                    "description": "The primary model for new chats. Must be available locally.",
+                    "type": "string",
+                    "example": "qwen3:8b"
                 },
                 "support_model": {
-                    "type": "string"
+                    "description": "A model used for background tasks, like generating chat titles.",
+                    "type": "string",
+                    "example": "gemma3:4b"
                 },
                 "system_prompt": {
-                    "type": "string"
+                    "description": "A global instruction for the model's behavior.",
+                    "type": "string",
+                    "example": "You are a helpful assistant that always answers in Markdown format."
                 }
             }
         }
-    }
+    },
+    "tags": [
+        {
+            "description": "Endpoints for creating, retrieving, and managing conversations.",
+            "name": "Chats"
+        },
+        {
+            "description": "Endpoints for listing, downloading, and managing local Ollama models.",
+            "name": "Models"
+        },
+        {
+            "description": "Endpoints for managing global application settings.",
+            "name": "Settings"
+        }
+    ]
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
+	Version:          "0.0.1",
 	Host:             "",
-	BasePath:         "/api/v1",
+	BasePath:         "/api",
 	Schemes:          []string{},
-	Title:            "Flow-AI Backend API",
-	Description:      "This is the API server for the Flow-AI application, providing endpoints for chat, model management, and settings.",
+	Title:            "Flow-AI API",
+	Description:      "This is the API server for the Flow-AI application. It provides endpoints for managing chats, models, and application settings.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

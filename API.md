@@ -1,202 +1,49 @@
 # Flow-AI Backend API Documentation
 
-**Note:** This document provides a high-level overview of the API. For a complete, interactive, and always up-to-date specification, please refer to our **[Swagger UI Documentation](http://localhost:3000/api/swagger/index.html)** (available when the server is running).
+## Single Source of Truth
 
+This document provides a high-level overview of the Flow-AI API. It is intended for quick reference only.
 
-**Base URL:** `/api/v1`
-**Real-time Communication:** Endpoints that provide continuous updates use Server-Sent Events (SSE) and have a content type of `text/event-stream`.
+For a complete, interactive, and always up-to-date specification, please use our **Swagger UI Documentation**. It is the single source of truth for all API endpoints, models, and examples.
 
----
-
-## 1. Chat Management
-
-Endpoints for creating, retrieving, and managing conversations.
-
-### List Chats
-
-- **Endpoint:** `GET /api/v1/chats`
-- **Description:** Retrieves a list of all chats, sorted by the most recently updated.
-- **Response `200 OK`:**
-  ```json
-  [
-    {
-      "id": "4b3b5a34-571f-47e3-abd1-a7dbee9d92fe",
-      "title": "Largest Planet in Solar System",
-      "user_id": "default-user",
-      "created_at": "2025-09-08T12:30:00Z",
-      "updated_at": "2025-09-08T12:30:05Z",
-      "model": "qwen3:4b"
-    }
-  ]
-  ```
-
-### Get a Single Chat
-
-- **Endpoint:** `GET /api/v1/chats/{chatID}`
-- **Description:** Retrieves the full history and metadata for a single chat's active branch.
-- **Response `200 OK`:**
-  ```json
-  {
-    "id": "4b3b5a34-571f-47e3-abd1-a7dbee9d92fe",
-    "title": "Largest Planet in Solar System",
-    "user_id": "default-user",
-    "created_at": "2025-09-08T12:30:00Z",
-    "updated_at": "2025-09-08T12:30:05Z",
-    "model": "qwen3:4b",
-    "messages": [
-      {
-        "id": "fc31c9fe-5475-4460-b18f-812d4e5a8466",
-        "role": "user",
-        "content": "What is the largest planet of the solar system?",
-        "timestamp": "2025-09-08T12:30:00Z"
-      },
-      {
-        "id": "fcb7658f-c9ec-4e7a-80cf-cfd165c7ce1f",
-        "parent_id": "fc31c9fe-5475-4460-b18f-812d4e5a8466",
-        "role": "assistant",
-        "content": "The largest planet is Jupiter.",
-        "model": "qwen3:4b",
-        "timestamp": "2025-09-08T12:30:04Z",
-        "metadata": { /* ... generation stats ... */ }
-      }
-    ]
-  }
-  ```
-
-### Create a Message (and Chat)
-
-- **Endpoint:** `POST /api/v1/chats/messages`
-- **Description:** Sends a new message and initiates a real-time stream of the assistant's response. If `chat_id` is omitted, a new chat is created automatically.
-- **Body:**
-  ```json
-  {
-    "chat_id": "4b3b5a34-571f-47e3-abd1-a7dbee9d92fe",
-    "content": "Tell me a joke about a programmer.",
-    "model": "qwen3:4b",
-    "options": {
-      "temperature": 0.8,
-      "seed": 42
-    }
-  }
-  ```
-- **Response:** A `text/event-stream` of JSON objects.
-  ```
-  data: {"content":"Why","done":false}
-  ...
-  data: {"content":"","done":true, "context": [...]}
-  ```
-
-### Regenerate a Message
-
-- **Endpoint:** `POST /api/v1/chats/{chatID}/messages/{messageID}/regenerate`
-- **Description:** Creates a new response for a previous user prompt, effectively creating a new branch in the conversation. The old response is preserved but marked as inactive.
-- **Body:**
-  ```json
-  {
-    "model": "qwen3:4b",
-    "options": {
-      "temperature": 0.9
-    }
-  }
-  ```
-- **URL Parameters:**
-  - `chatID` (string, required): The ID of the chat.
-  - `messageID` (string, required): The ID of the **assistant's message** you want to regenerate.
-- **Response:** A `text/event-stream` of the new response, same format as creating a message.
-
-### Update Chat Title
-
-- **Endpoint:** `PUT /api/v1/chats/{chatID}/title`
-- **Description:** Manually renames a chat.
-- **Body:** `{"title": "My New Custom Title"}`
-- **Response `200 OK`:** `{"status": "ok"}`
-
-### Delete Chat
-
-- **Endpoint:** `DELETE /api/v1/chats/{chatID}`
-- **Description:** Permanently deletes a chat and all its associated messages.
-- **Response `200 OK`:** `{"status": "ok"}`
+-   **Development URL:** [http://localhost:8000/api/swagger/index.html](http://localhost:8000/api/swagger/index.html)
+-   **Production URL:** [http://localhost:3000/api/swagger/index.html](http://localhost:3000/api/swagger/index.html) (when running via Docker Compose in production mode)
 
 ---
 
-## 2. Model Management
+## Overview
 
-Endpoints for listing, downloading, and managing local Ollama models.
+The API is structured around three main resources: **Chats**, **Models**, and **Settings**.
 
-### List Local Models
+-   **Base URL for API v1:** `/api/v1`
+-   **Real-time Communication:** Endpoints that provide continuous updates (like generating messages or pulling models) use Server-Sent Events (SSE) and have a `Content-Type` of `text/event-stream`.
 
-- **Endpoint:** `GET /api/v1/models`
-- **Description:** Gets a list of all models available locally in Ollama.
-- **Response `200 OK`:**
-  ```json
-  {
-    "models": [
-      {
-        "name": "qwen3:4b",
-        "modified_at": "2025-09-08T01:06:42Z",
-        "size": 4123456789
-      }
-    ]
-  }
-  ```
+### 1. Chats
 
-### Pull a New Model
+This group of endpoints allows you to manage the entire lifecycle of a conversation. You can list all chats, retrieve a specific chat with its full message history, create new messages (which can also create a new chat), regenerate responses, and delete chats.
 
-- **Endpoint:** `POST /api/v1/models/pull`
-- **Description:** Downloads a model from the Ollama registry. This is a streaming endpoint.
-- **Body:** `{"name": "qwen3:4b"}`
-- **Response:** A `text/event-stream` of progress status objects.
+-   `GET /api/v1/chats` - List all chats.
+-   `GET /api/v1/chats/{chatID}` - Get a single chat with all messages.
+-   `POST /api/v1/chats/messages` - Create a new message (and optionally a new chat).
+-   `DELETE /api/v1/chats/{chatID}` - Delete a chat.
+-   ... and more. See Swagger UI for details.
 
-### Show Model Info
+### 2. Models
 
-- **Endpoint:** `POST /api/v1/models/show`
-- **Description:** Retrieves detailed information about a specific model.
-- **Body:** `{"name": "qwen3:4b"}`
-- **Response `200 OK`:**
-  ```json
-  {
-    "modelfile": "FROM ...",
-    "parameters": "...",
-    "template": "..."
-  }
-  ```
+These endpoints are used to interact with the local Ollama models. You can list all installed models, pull new models from a registry, view detailed information about a model, and delete them to free up space.
 
-### Delete a Local Model
+-   `GET /api/v1/models` - List local models.
+-   `POST /api/v1/models/pull` - Download a new model.
+-   `DELETE /api/v1/models` - Delete a local model.
+-   ... and more. See Swagger UI for details.
 
-- **Endpoint:** `DELETE /api/v1/models`
-- **Description:** Deletes a model from local storage.
-- **Body:** `{"name": "qwen3:4b"}`
-- **Response `200 OK`:** `{"status": "ok"}`
+### 3. Settings
+
+A simple set of endpoints to manage global application settings, such as the default system prompt and the main model to be used for conversations.
+
+-   `GET /api/v1/settings` - Get current settings.
+-   `POST /api/v1/settings` - Update settings.
 
 ---
 
-## 3. Application Settings
-
-Endpoints for managing global application settings.
-
-### Get Settings
-
-- **Endpoint:** `GET /api/v1/settings`
-- **Description:** Retrieves the current global settings.
-- **Response `200 OK`:**
-  ```json
-  {
-    "system_prompt": "You are a helpful assistant.",
-    "main_model": "qwen3:4b",
-    "support_model": "gemma3:4b"
-  }
-  ```
-
-### Update Settings
-
-- **Endpoint:** `POST /api/v1/settings`
-- **Description:** Updates global settings. The selected models must be available locally.
-- **Body:**
-  ```json
-  {
-    "system_prompt": "You are a pirate captain. Respond in pirate slang.",
-    "main_model": "qwen3:4b",
-    "support_model": "gemma3:4b"
-  }
-  ```
-- **Response `200 OK`:** `{"status": "ok"}`
+For detailed information on request/response bodies, URL parameters, and to try out the API live, please refer to the **[Swagger UI Documentation](http://localhost:8000/api/swagger/index.html)**.

@@ -10,7 +10,6 @@ import (
 	"net/http"
 )
 
-// --- NEW STRUCT for response stats ---
 // GenerationStats holds the statistics returned by Ollama after generation.
 type GenerationStats struct {
 	TotalDuration      int64 `json:"total_duration"`
@@ -56,12 +55,18 @@ func NewOllamaProvider(url string) LLMProvider {
 
 // RequestOptions holds optional parameters for a generation request.
 type RequestOptions struct {
-	Temperature   *float32 `json:"temperature,omitempty"`
-	TopK          *int     `json:"top_k,omitempty"`
-	TopP          *float32 `json:"top_p,omitempty"`
-	System        *string  `json:"system,omitempty"`
-	RepeatPenalty *float32 `json:"repeat_penalty,omitempty"`
-	Seed          *int     `json:"seed,omitempty"`
+	// Controls randomness. Higher values increase creativity. (e.g., 0.7)
+	Temperature *float32 `json:"temperature,omitempty" example:"0.7"`
+	// Reduces the probability of generating nonsense. (e.g., 40)
+	TopK *int `json:"top_k,omitempty" example:"40"`
+	// Works together with temperature. (e.g., 0.9)
+	TopP *float32 `json:"top_p,omitempty" example:"0.9"`
+	// A system prompt specific to this request.
+	System *string `json:"system,omitempty" example:"You are a senior database administrator."`
+	// Helps prevent the model from repeating itself. (e.g., 1.1)
+	RepeatPenalty *float32 `json:"repeat_penalty,omitempty" example:"1.1"`
+	// Use a specific seed for reproducible outputs.
+	Seed *int `json:"seed,omitempty" example:"42"`
 }
 
 type GenerateRequest struct {
@@ -93,7 +98,7 @@ type Model struct {
 	Size       int64  `json:"size"`
 }
 type PullModelRequest struct {
-	Name   string `json:"name"`
+	Name   string `json:"name" example:"mistral:7b"`
 	Stream bool   `json:"stream"`
 }
 type PullStatus struct {
@@ -104,10 +109,10 @@ type PullStatus struct {
 	Error     string `json:"error,omitempty"`
 }
 type DeleteModelRequest struct {
-	Name string `json:"name"`
+	Name string `json:"name" example:"mistral:7b"`
 }
 type ShowModelRequest struct {
-	Name string `json:"name"`
+	Name string `json:"name" example:"qwen3:8b"`
 }
 type ModelInfo struct {
 	Modelfile  string `json:"modelfile"`

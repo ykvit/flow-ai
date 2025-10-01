@@ -14,11 +14,13 @@ import (
 
 // Settings holds the dynamic application settings.
 type Settings struct {
-	SystemPrompt string `json:"system_prompt"`
-	MainModel    string `json:"main_model"`
-	SupportModel string `json:"support_model"`
+	// A global instruction for the model's behavior.
+	SystemPrompt string `json:"system_prompt" example:"You are a helpful assistant that always answers in Markdown format."`
+	// The primary model for new chats. Must be available locally.
+	MainModel string `json:"main_model" example:"qwen3:8b"`
+	// A model used for background tasks, like generating chat titles.
+	SupportModel string `json:"support_model" example:"gemma3:4b"`
 }
-
 type SettingsService struct {
 	db  *sql.DB
 	llm llm.LLMProvider

@@ -1,4 +1,4 @@
-basePath: /api/v1
+basePath: /api
 definitions:
   api.ErrorResponse:
     properties:
@@ -13,11 +13,13 @@ definitions:
   api.UpdateTitleRequest:
     properties:
       title:
+        example: My Custom Chat Title
         type: string
     type: object
   llm.DeleteModelRequest:
     properties:
       name:
+        example: mistral:7b
         type: string
     type: object
   llm.ListModelsResponse:
@@ -48,6 +50,7 @@ definitions:
   llm.PullModelRequest:
     properties:
       name:
+        example: mistral:7b
         type: string
       stream:
         type: boolean
@@ -68,21 +71,35 @@ definitions:
   llm.RequestOptions:
     properties:
       repeat_penalty:
+        description: Helps prevent the model from repeating itself. (e.g., 1.1)
+        example: 1.1
         type: number
       seed:
+        description: Use a specific seed for reproducible outputs.
+        example: 42
         type: integer
       system:
+        description: A system prompt specific to this request.
+        example: You are a senior database administrator.
         type: string
       temperature:
+        description: Controls randomness. Higher values increase creativity. (e.g.,
+          0.7)
+        example: 0.7
         type: number
       top_k:
+        description: Reduces the probability of generating nonsense. (e.g., 40)
+        example: 40
         type: integer
       top_p:
+        description: Works together with temperature. (e.g., 0.9)
+        example: 0.9
         type: number
     type: object
   llm.ShowModelRequest:
     properties:
       name:
+        example: qwen3:8b
         type: string
     type: object
   model.Chat:
@@ -170,16 +187,29 @@ definitions:
   service.CreateMessageRequest:
     properties:
       chat_id:
+        description: The ID of an existing chat. If omitted, a new chat will be created.
+        example: 4b3b5a34-571f-47e3-abd1-a7dbee9d92fe
         type: string
       content:
+        description: The content of the user's message.
+        example: What is the difference between SQL and NoSQL databases?
         type: string
       model:
+        description: The model to use for this specific message. Overrides the global
+          setting.
+        example: qwen3:8b
         type: string
       options:
-        $ref: '#/definitions/llm.RequestOptions'
+        allOf:
+        - $ref: '#/definitions/llm.RequestOptions'
+        description: Additional generation options for this request.
       support_model:
+        description: A support model for this specific message. Overrides the global
+          setting.
         type: string
       system_prompt:
+        description: A system prompt for this specific message. Overrides the global
+          setting.
         type: string
     type: object
   service.RegenerateMessageRequest:
@@ -188,32 +218,46 @@ definitions:
         description: Included for context
         type: string
       model:
+        description: The model to use for the regenerated response. Overrides the
+          global setting.
+        example: mistral:7b
         type: string
       options:
-        $ref: '#/definitions/llm.RequestOptions'
+        allOf:
+        - $ref: '#/definitions/llm.RequestOptions'
+        description: New generation options. For example, use a higher temperature
+          for a more creative answer.
       system_prompt:
+        description: A system prompt for the regenerated response. Overrides the global
+          setting.
         type: string
     type: object
   service.Settings:
     properties:
       main_model:
+        description: The primary model for new chats. Must be available locally.
+        example: qwen3:8b
         type: string
       support_model:
+        description: A model used for background tasks, like generating chat titles.
+        example: gemma3:4b
         type: string
       system_prompt:
+        description: A global instruction for the model's behavior.
+        example: You are a helpful assistant that always answers in Markdown format.
         type: string
     type: object
 info:
   contact:
     name: API Support
-    url: https://github.com/ykvit/flow-ai
-  description: This is the API server for the Flow-AI application, providing endpoints
-    for chat, model management, and settings.
+    url: https://github.com/ykvit/flow-ai/issues
+  description: This is the API server for the Flow-AI application. It provides endpoints
+    for managing chats, models, and application settings.
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
-  title: Flow-AI Backend API
-  version: "1.0"
+  title: Flow-AI API
+  version: 0.0.1
 paths:
   /v1/chats:
     get:
@@ -531,3 +575,10 @@ paths:
       tags:
       - Settings
 swagger: "2.0"
+tags:
+- description: Endpoints for creating, retrieving, and managing conversations.
+  name: Chats
+- description: Endpoints for listing, downloading, and managing local Ollama models.
+  name: Models
+- description: Endpoints for managing global application settings.
+  name: Settings

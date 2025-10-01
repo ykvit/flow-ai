@@ -19,7 +19,7 @@ type StatusResponse struct {
 
 // UpdateTitleRequest is the structure for the manual title update request.
 type UpdateTitleRequest struct {
-	Title string `json:"title"`
+	Title string `json:"title" example:"My Custom Chat Title"`
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string, err error) {
