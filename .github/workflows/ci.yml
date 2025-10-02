@@ -121,7 +121,7 @@ jobs:
           fi
         
       - name: Upload coverage to Codecov
-        if: github.repository == 'ykvit/flow-ai' && secrets.CODECOV_TOKEN != ''
+        if: github.repository == 'ykvit/flow-ai'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
