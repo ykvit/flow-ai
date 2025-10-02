@@ -10,17 +10,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Set default permissions for the GITHUB_TOKEN for security
 permissions:
   contents: read
-  security-events: write # For Trivy SARIF upload
-  actions: read         # For SARIF upload
-  pull-requests: write  # For Codecov PR comments
+  security-events: write
+  actions: read
+  pull-requests: write
 
 jobs:
-  # --------------------------------------------------------------------------
-  # Job 1 (Parallel): Fast Go code quality checks
-  # --------------------------------------------------------------------------
   quality-checks:
     name: Go Code Quality
     runs-on: ubuntu-latest
@@ -63,9 +59,6 @@ jobs:
           go install github.com/securego/gosec/v2/cmd/gosec@latest
           gosec -exclude=G302 ./...
 
-  # --------------------------------------------------------------------------
-  # Job 2 (Parallel): Frontend checks and build
-  # --------------------------------------------------------------------------
   frontend-ci:
     name: Frontend CI
     runs-on: ubuntu-latest
@@ -86,7 +79,6 @@ jobs:
         run: npm ci
 
       - name: Check TypeScript types
-        # Activated type checking - a crucial step for TS projects
         working-directory: frontend
         run: npm run typecheck
 
@@ -94,9 +86,6 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-  # --------------------------------------------------------------------------
-  # Job 3: Backend integration tests with Docker Compose
-  # --------------------------------------------------------------------------
   backend-testing:
     name: Backend Tests
     runs-on: ubuntu-latest
@@ -133,15 +122,12 @@ jobs:
         
       - name: Upload coverage to Codecov
         if: github.repository == 'ykvit/flow-ai' && secrets.CODECOV_TOKEN != ''
-        uses: codecov/codecov-action@v4.5.0
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/coverage.out
           flags: backend
 
-  # --------------------------------------------------------------------------
-  # Job 4: Build and scan production Docker image
-  # --------------------------------------------------------------------------
   build-and-scan-docker:
     name: Docker Build & Security Scan
     runs-on: ubuntu-latest
@@ -166,7 +152,7 @@ jobs:
           tags: flow-ai-ci:${{ github.sha }}
           load: true
 
-      - name: Scan Docker image with Trivy (SARIF & JSON)
+      - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: 'flow-ai-ci:${{ github.sha }}'
@@ -182,9 +168,6 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-  # --------------------------------------------------------------------------
-  # Job 5: Dependency review (PRs only)
-  # --------------------------------------------------------------------------
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
