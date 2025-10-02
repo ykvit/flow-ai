@@ -1,28 +1,33 @@
 # Makefile for the Flow-AI Project
-# Provides a simple and consistent interface for development, testing, and deployment tasks.
+# Uses a unified Docker build stage for all development and CI tasks, ensuring consistency.
 
 SHELL := /bin/bash
 HOST_UID := $(shell id -u)
 HOST_GID := $(shell id -g)
 
+# Base Docker Compose command setup
 COMPOSE_BASE_FILE := -f docker/compose.base.yaml
 COMPOSE_DEV_FILE  := -f docker/compose.dev.yaml
 COMPOSE_PROD_FILE := -f docker/compose.prod.yaml
 COMPOSE_TEST_FILE := -f docker/compose.test.yaml
 
+# GPU support is optional, controlled by `make <command> GPU=1`
 COMPOSE_GPU :=
 ifeq ($(GPU),1)
 	COMPOSE_GPU := -f docker/compose.gpu.yaml
 endif
 
+# DRY command variables
+# We use the DEV environment for all one-off tool commands
 COMPOSE_DEV_CMD  := docker compose $(COMPOSE_BASE_FILE) $(COMPOSE_DEV_FILE) $(COMPOSE_GPU)
 COMPOSE_PROD_CMD := docker compose $(COMPOSE_BASE_FILE) $(COMPOSE_PROD_FILE) $(COMPOSE_GPU)
-COMPOSE_TEST_CMD := docker compose $(COMPOSE_BASE_FILE) $(COMPOSE_TEST_FILE) $(COMPOSE_GPU)
+COMPOSE_TEST_CMD := docker compose $(COMPOSE_BASE_FILE) $(COMPOSE_TEST_FILE)
 
+# Service names for clarity
 BACKEND_SERVICE_NAME := flow-ai
 FRONTEND_SERVICE_NAME := frontend
 
-.PHONY: help dev prod down logs swag lint format dev-gpu prod-gpu down-dev down-prod down-test test test-backend test-frontend test-ci
+.PHONY: help dev prod down logs swag lint format format-check dev-gpu prod-gpu down-dev down-prod down-test test test-backend test-frontend test-ci
 .DEFAULT_GOAL := help
 
 ##@ Main Commands
@@ -45,23 +50,19 @@ logs: ##> 📜 View logs from the development environment.
 test: ##> 🧪 Run all available tests for the project (backend & frontend).
 	@$(MAKE) test-backend
 	@echo "\nNote: Frontend tests are not yet implemented. Structure is ready."
-	# @$(MAKE) test-frontend # Uncomment when frontend tests are available
+	# @$(MAKE) test-frontend
 
 test-backend: ##> 🧪 (Backend) Run Go integration tests.
-	@echo "--- Running Go integration tests (CPU) ---"
+	@echo "--- Running Go integration tests ---"
 	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) up \
 		--build \
 		--abort-on-container-exit \
 		--exit-code-from $(BACKEND_SERVICE_NAME) \
-		$(BACKEND_SERVICE_NAME) # CORRECTED: Explicitly specify which service to run
+		$(BACKEND_SERVICE_NAME)
 
 test-frontend: ##> 🧪 (Frontend) Run frontend tests.
-	@echo "--- Running frontend tests (CPU) ---"
-	$(COMPOSE_TEST_CMD) up \
-		--build \
-		--abort-on-container-exit \
-		--exit-code-from $(FRONTEND_SERVICE_NAME) \
-		$(FRONTEND_SERVICE_NAME) # CORRECTED: Explicitly specify which service to run
+	@echo "--- Running frontend tests (placeholder) ---"
+	# $(COMPOSE_TEST_CMD) up --build --abort-on-container-exit --exit-code-from $(FRONTEND_SERVICE_NAME) $(FRONTEND_SERVICE_NAME)
 
 ##@ GPU Aliases
 dev-gpu: ##> 🚀 (GPU) Start the development environment.
@@ -91,22 +92,34 @@ down: ##> ☢️ Stop and clean up ALL environments.
 
 ##@ CI-Specific Commands
 test-ci: ##> 🤖 (Backend) Run tests for CI (no cache).
-	@echo "--- Running CI integration tests (no cache) ---"
+	@echo "--- Building test images with no cache ---"
+	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) build --no-cache $(BACKEND_SERVICE_NAME)
+	@echo "--- Running CI integration tests ---"
 	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) up \
-		--build --no-cache \
 		--abort-on-container-exit \
 		--exit-code-from $(BACKEND_SERVICE_NAME) \
-		$(BACKEND_SERVICE_NAME) # CORRECTED: Explicitly specify which service to run
+		$(BACKEND_SERVICE_NAME)
+
+format-check: ##> 🧐 Check if Go code is formatted (for CI).
+	@echo "--- Checking Go code formatting ---"
+	@if [ -n "$$($(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) goimports -l .)" ]; then \
+		echo "The following files are not formatted correctly:"; \
+		$(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) goimports -l .; \
+		exit 1; \
+	fi
+	@echo "All files are correctly formatted."
 
 ##@ Code Quality & Docs
 swag: ##> 📄 Regenerate Swagger/OpenAPI documentation.
 	@echo "--- Regenerating Swagger documentation ---"
-	@$(COMPOSE_DEV_CMD) run --build --rm $(BACKEND_SERVICE_NAME) sh -c "swag init -g ./cmd/server/main.go && chown -R $(HOST_UID):$(HOST_GID) docs"
+	# We run as the host user to ensure the generated files have the correct permissions.
+	@$(COMPOSE_DEV_CMD) run --rm --user $(HOST_UID):$(HOST_GID) $(BACKEND_SERVICE_NAME) \
+		swag init -g ./cmd/server/main.go --output ./docs
 
 lint: ##> 🔍 Run the Go linter (golangci-lint).
 	@echo "--- Running Go linter ---"
-	@$(COMPOSE_DEV_CMD) run --build --rm $(BACKEND_SERVICE_NAME) golangci-lint run ./...
+	@$(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) golangci-lint run -v ./...
 
 format: ##> ✨ Automatically format all Go source code.
 	@echo "--- Formatting Go code ---"
-	@$(COMPOSE_DEV_CMD) run --build --rm $(BACKEND_SERVICE_NAME) goimports -w .
+	@$(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) goimports -w .
