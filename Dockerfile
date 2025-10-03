@@ -22,7 +22,7 @@ RUN addgroup -S appgroup -g 1001 && adduser -S appuser -u 1001 -G appgroup
 # Swag version updated to a stable patch release without go.mod issues.
 RUN apk add --no-cache build-base git
 RUN go install golang.org/x/tools/cmd/goimports@v0.37.0
-RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
+RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
 RUN go install github.com/swaggo/swag/cmd/swag@v1.16.6
 
 COPY backend/go.mod backend/go.sum ./
