@@ -3,7 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -14,7 +14,8 @@ import (
 func InitDB(dataSourceName string) (*sql.DB, error) {
 	// Ensure the directory for the database file exists.
 	dir := filepath.Dir(dataSourceName)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	// [FIX] G301: Use more restrictive directory permissions as recommended by gosec.
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 
@@ -30,7 +31,8 @@ func InitDB(dataSourceName string) (*sql.DB, error) {
 	// Enable WAL mode for better concurrency.
 	// This allows readers to not block writers.
 	if _, err := db.Exec("PRAGMA journal_mode=WAL;"); err != nil {
-		log.Printf("WARN: Failed to enable WAL mode: %v", err)
+		// [FIX] Switched to slog for consistent, structured logging.
+		slog.Warn("Failed to enable WAL mode for SQLite, continuing without it.", "error", err)
 	}
 
 	if err := createTables(db); err != nil {
