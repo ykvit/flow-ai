@@ -23,19 +23,19 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5.0.2
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.23'
+          go-version: '1.24.7'
           cache: true
           cache-dependency-path: 'backend/go.sum'
 
       - name: Check Go code formatting
         working-directory: backend
         run: |
-          go install golang.org/x/tools/cmd/goimports@v0.21.0
+          go install golang.org/x/tools/cmd/goimports@v0.21
           UNFORMATTED=$(goimports -l .)
           if [ -n "$UNFORMATTED" ]; then
             echo "❌ The following files are not formatted correctly:"
@@ -51,9 +51,9 @@ jobs:
         run: go mod download
 
       - name: Lint Go code
-        uses: golangci/golangci-lint-action@v6.1.0
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: v1.60.1
+          version: v1.64.8
           working-directory: backend
           args: --verbose ./...
 
@@ -69,10 +69,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4.0.3
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -98,14 +98,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: ['1.23']
+        go-version: ['1.24.7']
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5.0.2
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -139,16 +139,16 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.4.0
+        uses: docker/setup-buildx-action@v3
 
       - name: Create .env file from example
         run: cp .env.example .env
 
       - name: Build production Docker image
-        uses: docker/build-push-action@v6.5.0
+        uses: docker/build-push-action@v6
         with:
           context: .
           target: final
@@ -157,7 +157,7 @@ jobs:
           load: true
 
       - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: 'flow-ai-ci:${{ github.sha }}'
           format: 'template'
@@ -168,7 +168,7 @@ jobs:
       
       - name: Upload Trivy SARIF results to GitHub Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@v3.25.11
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
 
@@ -180,9 +180,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@v5
       
       - name: Review dependencies for vulnerabilities
-        uses: actions/dependency-review-action@v4.3.4
+        uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
