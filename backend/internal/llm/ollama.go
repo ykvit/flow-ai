@@ -56,12 +56,12 @@ func NewOllamaProvider(url string) LLMProvider {
 
 // RequestOptions holds optional parameters for a generation request.
 type RequestOptions struct {
-	Temperature *float32 `json:"temperature,omitempty" example:"0.7"`
-	TopK        *int     `json:"top_k,omitempty" example:"40"`
-	TopP        *float32 `json:"top_p,omitempty" example:"0.9"`
-	System      *string  `json:"system,omitempty" example:"You are a senior database administrator."`
+	Temperature   *float32 `json:"temperature,omitempty" example:"0.7"`
+	TopK          *int     `json:"top_k,omitempty" example:"40"`
+	TopP          *float32 `json:"top_p,omitempty" example:"0.9"`
+	System        *string  `json:"system,omitempty" example:"You are a senior database administrator."`
 	RepeatPenalty *float32 `json:"repeat_penalty,omitempty" example:"1.1"`
-	Seed        *int     `json:"seed,omitempty" example:"42"`
+	Seed          *int     `json:"seed,omitempty" example:"42"`
 }
 
 type GenerateRequest struct {
