@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -65,7 +64,7 @@ func (h *ChatHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("Application settings updated")
+	slog.Info("Application settings updated", "main_model", newSettings.MainModel, "support_model", newSettings.SupportModel)
 	respondWithJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
 }
 
@@ -133,13 +132,12 @@ func (h *ChatHandler) HandleStreamMessage(w http.ResponseWriter, r *http.Request
 
 	for chunk := range streamChan {
 		if r.Context().Err() != nil {
-			slog.Info("Client disconnected.")
+			slog.Info("Client disconnected, stopping stream.")
 			break
 		}
-		jsonData, _ := json.Marshal(chunk)
-		fmt.Fprintf(w, "data: %s\n\n", string(jsonData))
-		if flusher, ok := w.(http.Flusher); ok {
-			flusher.Flush()
+		if err := writeStreamEvent(w, chunk); err != nil {
+			slog.Warn("Could not write to stream, client likely disconnected.", "error", err)
+			break
 		}
 	}
 
@@ -178,17 +176,16 @@ func (h *ChatHandler) HandleRegenerateMessage(w http.ResponseWriter, r *http.Req
 
 	for chunk := range streamChan {
 		if r.Context().Err() != nil {
-			slog.Info("Client disconnected during regeneration.")
+			slog.Info("Client disconnected during regeneration.", "chatID", chatID)
 			break
 		}
-		jsonData, _ := json.Marshal(chunk)
-		fmt.Fprintf(w, "data: %s\n\n", string(jsonData))
-		if flusher, ok := w.(http.Flusher); ok {
-			flusher.Flush()
+		if err := writeStreamEvent(w, chunk); err != nil {
+			slog.Warn("Could not write to regeneration stream, client likely disconnected.", "error", err, "chatID", chatID)
+			break
 		}
 	}
 
-	slog.Debug("Finished streaming regenerated response.")
+	slog.Debug("Finished streaming regenerated response.", "chatID", chatID)
 }
 
 // UpdateChatTitle godoc

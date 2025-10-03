@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 )
 
@@ -55,18 +56,12 @@ func NewOllamaProvider(url string) LLMProvider {
 
 // RequestOptions holds optional parameters for a generation request.
 type RequestOptions struct {
-	// Controls randomness. Higher values increase creativity. (e.g., 0.7)
 	Temperature *float32 `json:"temperature,omitempty" example:"0.7"`
-	// Reduces the probability of generating nonsense. (e.g., 40)
-	TopK *int `json:"top_k,omitempty" example:"40"`
-	// Works together with temperature. (e.g., 0.9)
-	TopP *float32 `json:"top_p,omitempty" example:"0.9"`
-	// A system prompt specific to this request.
-	System *string `json:"system,omitempty" example:"You are a senior database administrator."`
-	// Helps prevent the model from repeating itself. (e.g., 1.1)
+	TopK        *int     `json:"top_k,omitempty" example:"40"`
+	TopP        *float32 `json:"top_p,omitempty" example:"0.9"`
+	System      *string  `json:"system,omitempty" example:"You are a senior database administrator."`
 	RepeatPenalty *float32 `json:"repeat_penalty,omitempty" example:"1.1"`
-	// Use a specific seed for reproducible outputs.
-	Seed *int `json:"seed,omitempty" example:"42"`
+	Seed        *int     `json:"seed,omitempty" example:"42"`
 }
 
 type GenerateRequest struct {
@@ -144,7 +139,11 @@ func (p *ollamaProvider) Generate(ctx context.Context, req *GenerateRequest) (*G
 	if err != nil {
 		return nil, fmt.Errorf("http request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body in Generate", "error", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -201,7 +200,11 @@ func (p *ollamaProvider) GenerateStream(ctx context.Context, req *GenerateReques
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body in GenerateStream", "error", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -230,6 +233,7 @@ func (p *ollamaProvider) GenerateStream(ctx context.Context, req *GenerateReques
 		}
 		var chunk ollamaStreamChunk
 		if err := json.Unmarshal(line, &chunk); err != nil {
+			slog.Warn("Failed to unmarshal stream chunk from Ollama", "error", err, "line", string(line))
 			ch <- StreamResponse{Error: "Failed to decode stream chunk"}
 			continue
 		}
@@ -270,7 +274,11 @@ func (p *ollamaProvider) ListModels(ctx context.Context) (*ListModelsResponse, e
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body in ListModels", "error", err)
+		}
+	}()
 
 	var listResp ListModelsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&listResp); err != nil {
@@ -297,12 +305,17 @@ func (p *ollamaProvider) PullModel(ctx context.Context, req *PullModelRequest, c
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body in PullModel", "error", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
 		var status PullStatus
 		if err := json.Unmarshal(scanner.Bytes(), &status); err != nil {
+			slog.Warn("Failed to unmarshal pull status chunk from Ollama", "error", err, "line", string(scanner.Bytes()))
 			ch <- PullStatus{Error: "Failed to decode stream chunk"}
 			continue
 		}
@@ -331,7 +344,11 @@ func (p *ollamaProvider) DeleteModel(ctx context.Context, req *DeleteModelReques
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body in DeleteModel", "error", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("api returned non-200 status: %s", resp.Status)
@@ -354,7 +371,11 @@ func (p *ollamaProvider) ShowModelInfo(ctx context.Context, req *ShowModelReques
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body in ShowModelInfo", "error", err)
+		}
+	}()
 
 	var info ModelInfo
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
