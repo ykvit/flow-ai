@@ -18,9 +18,14 @@ permissions:
 
 jobs:
   quality-checks:
-    name: Go Code Quality
+    name: Go Code Quality (Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.23', '1.24.7', 'stable']
+        
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -28,14 +33,14 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24.7'
+          go-version: ${{ matrix.go-version }}
           cache: true
           cache-dependency-path: 'backend/go.sum'
 
       - name: Check Go code formatting
         working-directory: backend
         run: |
-          go install golang.org/x/tools/cmd/goimports@v0.21
+          go install golang.org/x/tools/cmd/goimports@v0.21.0
           UNFORMATTED=$(goimports -l .)
           if [ -n "$UNFORMATTED" ]; then
             echo "❌ The following files are not formatted correctly:"
@@ -64,9 +69,14 @@ jobs:
           gosec -exclude=G302 ./...
 
   frontend-ci:
-    name: Frontend CI
+    name: Frontend CI (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20', '22', '24']
+        
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -74,7 +84,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: 'frontend/package.json'
 
@@ -91,14 +101,14 @@ jobs:
         run: npm run build
 
   backend-testing:
-    name: Backend Tests
+    name: Backend Tests (Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
     needs: quality-checks
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        go-version: ['1.24.7']
+        go-version: ['1.23', '1.24.7', 'stable']
     
     steps:
       - name: Checkout repository
