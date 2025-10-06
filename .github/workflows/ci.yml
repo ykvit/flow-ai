@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: ['1.23', '1.24.7', 'stable']
+        go-version: ['1.24.7', 'stable']
         
     steps:
       - name: Checkout repository
@@ -108,7 +108,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: ['1.23', '1.24.7', 'stable']
+        go-version: ['1.24.7', 'stable']
     
     steps:
       - name: Checkout repository
