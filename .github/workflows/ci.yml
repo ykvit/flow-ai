@@ -131,12 +131,14 @@ jobs:
           echo "## 🧪 Backend Tests (Go ${{ matrix.go-version }})" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           if [ -f coverage/coverage.out ]; then
-            COVERAGE=$(cat coverage/coverage.out | grep "total:" | awk '{print $3}')
+            COVERAGE=$(go tool cover -func=coverage/coverage.out | grep "total:" | awk '{print $3}')
             if [ -n "$COVERAGE" ]; then
               echo "**Coverage:** \`$COVERAGE\`" >> $GITHUB_STEP_SUMMARY
             else
-              echo "**Coverage:** \`Failed to parse\`" >> $GITHUB_STEP_SUMMARY
+              echo "**Coverage:** \`Failed to parse report\`" >> $GITHUB_STEP_SUMMARY
             fi
+          else
+            echo "**Coverage:** \`Report not found\`" >> $GITHUB_STEP_SUMMARY
           fi
         
       - name: Upload coverage to Codecov
