@@ -131,7 +131,12 @@ jobs:
           echo "## 🧪 Backend Tests (Go ${{ matrix.go-version }})" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           if [ -f coverage/coverage.out ]; then
-            echo "**Coverage:** \`$(go tool cover -func=coverage/coverage.out | tail -1)\`" >> $GITHUB_STEP_SUMMARY
+            COVERAGE=$(cat coverage/coverage.out | grep "total:" | awk '{print $3}')
+            if [ -n "$COVERAGE" ]; then
+              echo "**Coverage:** \`$COVERAGE\`" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Coverage:** \`Failed to parse\`" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
         
       - name: Upload coverage to Codecov
@@ -149,7 +154,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #v3.11.1
