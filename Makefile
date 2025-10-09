@@ -94,11 +94,14 @@ down: ##> ☢️ Stop and clean up ALL environments.
 test-ci: ##> 🤖 (Backend) Run tests for CI (no cache).
 	@echo "--- Building test images with no cache ---"
 	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) build --no-cache $(BACKEND_SERVICE_NAME)
-	@echo "--- Running CI integration tests ---"
+	@echo "--- Running CI integration tests and capturing logs ---"
+	@# We redirect all output to test-logs.txt and also print it to the console with tee.
+	@# The exit code of the compose command is preserved.
+	set -o pipefail; \
 	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) up \
 		--abort-on-container-exit \
 		--exit-code-from $(BACKEND_SERVICE_NAME) \
-		$(BACKEND_SERVICE_NAME)
+		$(BACKEND_SERVICE_NAME) 2>&1 | tee test-logs.txt
 
 format-check: ##> 🧐 Check if Go code is formatted (for CI).
 	@echo "--- Checking Go code formatting ---"
