@@ -131,7 +131,8 @@ jobs:
           echo "## 🧪 Backend Tests (Go ${{ matrix.go-version }})" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           if [ -f test-logs.txt ]; then
-            COVERAGE=$$(grep "total:" test-logs.txt | tail -1 | awk '{print $$3}')
+            # [FIX] Use a more robust awk command that takes the last field, avoiding issues with parentheses.
+            COVERAGE=$$(grep "total:" test-logs.txt | tail -1 | awk '{print $$NF}')
             if [ -n "$COVERAGE" ]; then
               echo "**Coverage:** \`$COVERAGE\`" >> $GITHUB_STEP_SUMMARY
             else
