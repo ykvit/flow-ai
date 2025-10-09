@@ -131,7 +131,7 @@ jobs:
           echo "## 🧪 Backend Tests (Go ${{ matrix.go-version }})" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           if [ -f test-logs.txt ]; then
-            COVERAGE=$$(awk '/total:/ { value = $$NF } END { print value }' test-logs.txt)
+            COVERAGE=$(awk '/total:/ { value = $NF } END { print value }' test-logs.txt)
             if [ -n "$COVERAGE" ]; then
               echo "**Coverage:** \`$COVERAGE\`" >> $GITHUB_STEP_SUMMARY
             else
