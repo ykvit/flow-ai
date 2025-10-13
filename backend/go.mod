@@ -5,7 +5,7 @@ go 1.24
 toolchain go1.24.7
 
 require (
-	github.com/go-chi/chi/v5 v5.0.12
+	github.com/go-chi/chi/v5 v5.2.3
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-sqlite3 v1.14.22 // Added
 	github.com/swaggo/http-swagger v1.3.4
