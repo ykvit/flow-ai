@@ -38,3 +38,10 @@ body {
   border-radius: 50%;
   transition: background-color 0.3s ease;
 }
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+body {
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+}

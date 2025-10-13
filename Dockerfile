@@ -12,7 +12,7 @@ RUN npm run build
 # Stage 2: Backend Builder & Developer's Toolbox
 # =================================================================
 # This stage contains all tools needed for development, linting, and docs.
-FROM golang:1.23-alpine AS builder-backend
+FROM golang:1.24.7-alpine AS builder-backend
 WORKDIR /src
 
 RUN apk add --no-cache build-base
@@ -20,9 +20,10 @@ RUN addgroup -S appgroup -g 1001 && adduser -S appuser -u 1001 -G appgroup
 
 # Pinned all tool versions for reproducible builds.
 # Swag version updated to a stable patch release without go.mod issues.
-RUN go install golang.org/x/tools/cmd/goimports@v0.21.0
-RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.1
-RUN go install github.com/swaggo/swag/cmd/swag@v1.16.3
+RUN apk add --no-cache build-base git
+RUN go install golang.org/x/tools/cmd/goimports@v0.37.0
+RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
+RUN go install github.com/swaggo/swag/cmd/swag@v1.16.6
 
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
@@ -33,7 +34,7 @@ RUN chown -R appuser:appgroup /src
 # =================================================================
 # Stage 3: Final Production Image
 # =================================================================
-FROM alpine:3.20 AS final
+FROM alpine:3.22 AS final
 WORKDIR /app
 RUN apk add --no-cache nginx ca-certificates
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup

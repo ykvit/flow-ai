@@ -136,7 +136,11 @@ func TestFullChatWorkflow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create message: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("Warning: failed to close response body: %v", err)
+			}
+		}()
 		drainStream(t, resp.Body)
 	})
 
@@ -184,7 +188,11 @@ func TestFullChatWorkflow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to update title: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("Warning: failed to close response body: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("Expected status 200 for title update, got %d", resp.StatusCode)
 		}
@@ -199,7 +207,11 @@ func TestFullChatWorkflow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to delete chat: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("Warning: failed to close response body: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("Expected status 200 for chat deletion, got %d", resp.StatusCode)
 		}
@@ -315,7 +327,11 @@ func getFullChat(t *testing.T, chatID string) fullChatTest {
 	if err != nil {
 		t.Fatalf("Failed to get chat by ID %s: %v", chatID, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Logf("Warning: failed to close response body: %v", err)
+		}
+	}()
 	var chat fullChatTest
 	if err := json.NewDecoder(resp.Body).Decode(&chat); err != nil {
 		t.Fatalf("Failed to decode full chat: %v", err)
@@ -329,7 +345,11 @@ func listChats(t *testing.T) []chatInfoTest {
 	if err != nil {
 		t.Fatalf("Failed to list chats: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Logf("Warning: failed to close response body: %v", err)
+		}
+	}()
 	var chats []chatInfoTest
 	if err := json.NewDecoder(resp.Body).Decode(&chats); err != nil {
 		t.Fatalf("Failed to decode chat list: %v", err)
@@ -372,7 +392,10 @@ func waitForServices() error {
 	backendCheck := func(client *http.Client) bool {
 		resp, err := client.Get(baseAPIURL + "/settings")
 		if err == nil {
-			resp.Body.Close()
+			// In tests, logging a warning is sufficient if closing the body fails.
+			if err := resp.Body.Close(); err != nil {
+				fmt.Printf("[waitForServices] Warning: failed to close response body: %v\n", err)
+			}
 			return true // Any response from the server is good
 		}
 		return false
@@ -381,11 +404,15 @@ func waitForServices() error {
 	ollamaCheck := func(client *http.Client) bool {
 		resp, err := client.Get(ollamaInternalURL)
 		if err == nil && resp.StatusCode == http.StatusOK {
-			resp.Body.Close()
+			if err := resp.Body.Close(); err != nil {
+				fmt.Printf("[waitForServices] Warning: failed to close response body: %v\n", err)
+			}
 			return true
 		}
 		if resp != nil {
-			resp.Body.Close()
+			if err := resp.Body.Close(); err != nil {
+				fmt.Printf("[waitForServices] Warning: failed to close response body: %v\n", err)
+			}
 		}
 		return false
 	}
@@ -423,7 +450,11 @@ func pullTestModel() error {
 	if err != nil {
 		return fmt.Errorf("failed to send pull request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("[pullTestModel] Warning: failed to close response body: %v\n", err)
+		}
+	}()
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("model pull returned non-200 status: %d. Body: %s", resp.StatusCode, string(bodyBytes))

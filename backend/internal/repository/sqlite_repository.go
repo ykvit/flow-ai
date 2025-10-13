@@ -12,7 +12,6 @@ import (
 )
 
 // queryable is a helper interface that allows using both *sql.DB and *sql.Tx.
-// This helps to avoid code duplication for read operations.
 type queryable interface {
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
@@ -57,7 +56,11 @@ func (r *sqliteRepository) GetChats(ctx context.Context, userID string) ([]*mode
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			slog.Error("Failed to close rows in GetChats", "error", err)
+		}
+	}()
 
 	var chats []*model.Chat
 	for rows.Next() {
@@ -159,7 +162,11 @@ func (r *sqliteRepository) getActiveMessagesByChatID(ctx context.Context, q quer
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			slog.Error("Failed to close rows in getActiveMessagesByChatID", "error", err)
+		}
+	}()
 
 	var messages []model.Message
 	for rows.Next() {

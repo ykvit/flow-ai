@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -102,7 +101,7 @@ func (h *ModelHandler) HandlePullModel(w http.ResponseWriter, r *http.Request) {
 
 	var req llm.PullModelRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		slog.Error("Error decoding request body", "error", err)
+		slog.Error("Error decoding request body for model pull", "error", err)
 		sendStreamError(w, "Invalid request body")
 		return
 	}
@@ -111,32 +110,26 @@ func (h *ModelHandler) HandlePullModel(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		err := h.service.Pull(r.Context(), &req, streamChan)
 		if err != nil {
-			slog.Error("Error from model pull service", "error", err)
+			slog.Error("Error from model pull service", "model", req.Name, "error", err)
 		}
 	}()
 
 	for chunk := range streamChan {
 		if r.Context().Err() != nil {
-			slog.Info("Client disconnected during model pull.")
+			slog.Info("Client disconnected during model pull.", "model", req.Name)
 			break
 		}
 
 		if chunk.Error != "" {
-			slog.Warn("Received an error in the pull stream", "error", chunk.Error)
-			sendStreamError(w, chunk.Error)
+			slog.Warn("Received an error in the pull stream", "model", req.Name, "error", chunk.Error)
+			// The error is already being sent to the client via the stream, so we just log here.
 		}
 
-		jsonData, err := json.Marshal(chunk)
-		if err != nil {
-			slog.Error("Error marshalling pull status", "error", err)
-			continue
-		}
-
-		fmt.Fprintf(w, "data: %s\n\n", string(jsonData))
-		if flusher, ok := w.(http.Flusher); ok {
-			flusher.Flush()
+		if err := writeStreamEvent(w, chunk); err != nil {
+			slog.Warn("Could not write to model pull stream, client likely disconnected.", "error", err)
+			break
 		}
 	}
 
-	slog.Info("Finished streaming model pull.")
+	slog.Info("Finished streaming model pull.", "model", req.Name)
 }

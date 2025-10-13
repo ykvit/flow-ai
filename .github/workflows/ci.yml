@@ -1,0 +1,205 @@
+name: "CI Pipeline"
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  pull-requests: write
+
+jobs:
+  quality-checks:
+    name: Go Code Quality (Go ${{ matrix.go-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.24.7', 'stable']
+        
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - name: Set up Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+          cache-dependency-path: 'backend/go.sum'
+
+      - name: Check Go code formatting
+        working-directory: backend
+        run: |
+          go install golang.org/x/tools/cmd/goimports@v0.21.0
+          UNFORMATTED=$(goimports -l .)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "❌ The following files are not formatted correctly:"
+            echo "$UNFORMATTED"
+            echo ""
+            echo "Run 'make format' locally to fix formatting issues."
+            exit 1
+          fi
+          echo "✅ All Go files are properly formatted."
+
+      - name: Download Go modules
+        working-directory: backend
+        run: go mod download
+
+      - name: Lint Go code
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 #v8.0.0
+        with:
+          version: v2.5.0
+          working-directory: backend
+          args: --verbose ./...
+
+      - name: Run Go vulnerability scanner (gosec)
+        working-directory: backend
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec -exclude=G302 ./...
+
+  frontend-ci:
+    name: Frontend CI (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20', '22', '24']
+        
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 #v5.0.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json' 
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Check TypeScript types
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  backend-testing:
+    name: Backend Tests (Go ${{ matrix.go-version }})
+    runs-on: ubuntu-latest
+    needs: quality-checks
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.24.7', 'stable']
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - name: Set up Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Create .env file from example
+        run: cp .env.example .env
+
+      - name: Run backend integration tests
+        run: make test-ci
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "## 🧪 Backend Tests (Go ${{ matrix.go-version }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          if [ -f test-logs.txt ]; then
+            COVERAGE=$(awk '/total:/ { value = $NF } END { print value }' test-logs.txt)
+            if [ -n "$COVERAGE" ]; then
+              echo "**Coverage:** \`$COVERAGE\`" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Coverage:** \`Could not parse from logs\`" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "**Coverage:** \`Log file not found\`" >> $GITHUB_STEP_SUMMARY
+          fi
+        
+      - name: Upload coverage to Codecov
+        if: github.repository == 'ykvit/flow-ai'
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 #v5.5.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/coverage.out
+          flags: backend
+
+  build-and-scan-docker:
+    name: Docker Build & Security Scan
+    runs-on: ubuntu-latest
+    needs: [backend-testing, frontend-ci]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #v3.11.1
+
+      - name: Create .env file from example
+        run: cp .env.example .env
+
+      - name: Build production Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
+        with:
+          context: .
+          target: final
+          push: false
+          tags: flow-ai-ci:${{ github.sha }}
+          load: true
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 #v0.33.1
+        with:
+          image-ref: 'flow-ai-ci:${{ github.sha }}'
+          format: 'template'
+          template: '@/contrib/sarif.tpl'
+          output: 'trivy-results.sarif'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+      
+      - name: Upload Trivy SARIF results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@80cb6b56b93de3e779c7d476d9100d06fb87c877 #v3.30.7
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+      
+      - name: Review dependencies for vulnerabilities
+        uses: actions/dependency-review-action@56339e523c0409420f6c2c9a2f4292bbb3c07dd3 #4.8.0
+        with:
+          fail-on-severity: high

@@ -7,7 +7,7 @@ This document provides a high-level overview of the Flow-AI API. It is intended 
 For a complete, interactive, and always up-to-date specification, please use our **Swagger UI Documentation**. It is the single source of truth for all API endpoints, models, and examples.
 
 -   **Development URL:** [http://localhost:8000/api/swagger/index.html](http://localhost:8000/api/swagger/index.html)
--   **Production URL:** [http://localhost:3000/api/swagger/index.html](http://localhost:3000/api/swagger/index.html) (when running via Docker Compose in production mode)
+-   **Production URL:** [http://localhost:3000/api/swagger/index.html](http://localhost:3000/api/swagger/index.html)
 
 ---
 

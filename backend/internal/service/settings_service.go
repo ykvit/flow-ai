@@ -21,6 +21,7 @@ type Settings struct {
 	// A model used for background tasks, like generating chat titles.
 	SupportModel string `json:"support_model" example:"gemma3:4b"`
 }
+
 type SettingsService struct {
 	db  *sql.DB
 	llm llm.LLMProvider
@@ -35,7 +36,6 @@ func (s *SettingsService) InitAndGet(ctx context.Context, defaultSystemPrompt st
 	_, err := s.getFromDB(ctx)
 	if err == nil {
 		slog.Info("Found existing settings in database. Initialization not needed.")
-		// Self-heal settings if models were removed or not present on last run.
 		return s.Get(ctx)
 	}
 
@@ -126,7 +126,11 @@ func (s *SettingsService) getFromDB(ctx context.Context) (*Settings, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			slog.Error("Failed to close rows in getFromDB", "error", err)
+		}
+	}()
 
 	settingsMap := make(map[string]string)
 	for rows.Next() {
@@ -170,7 +174,11 @@ func (s *SettingsService) saveToDB(ctx context.Context, settings *Settings) erro
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement in saveToDB", "error", err)
+		}
+	}()
 
 	for key, value := range settingsMap {
 		if _, err := stmt.ExecContext(ctx, key, value); err != nil {

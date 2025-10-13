@@ -22,6 +22,7 @@ import (
 func Run() int {
 	cfg, err := config.LoadConfig()
 	if err != nil {
+		// slog is not yet configured, so use the default logger for this critical error.
 		slog.Error("Failed to load configuration", "error", err)
 		return 1
 	}
@@ -37,7 +38,11 @@ func Run() int {
 		slog.Error("Failed to initialize database", "error", err)
 		return 1
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			slog.Error("Failed to close database connection", "error", err)
+		}
+	}()
 	slog.Info("Successfully connected to SQLite database.")
 
 	repo := repository.NewSQLiteRepository(db)
@@ -109,14 +114,18 @@ func waitForOllama(ollamaURL string) {
 	for {
 		resp, err := client.Get(ollamaURL)
 		if err == nil && resp.StatusCode == http.StatusOK {
-			resp.Body.Close()
+			if bErr := resp.Body.Close(); bErr != nil {
+				slog.Warn("Failed to close response body in ollama health check", "error", bErr)
+			}
 			slog.Info("Ollama is ready.")
 			return
 		}
 		if resp != nil {
-			resp.Body.Close()
+			if bErr := resp.Body.Close(); bErr != nil {
+				slog.Warn("Failed to close response body in ollama health check (retry path)", "error", bErr)
+			}
 		}
-		slog.Debug("Ollama not ready yet, retrying in 3 seconds...", "url", ollamaURL)
+		slog.Debug("Ollama not ready yet, retrying in 3 seconds...", "url", ollamaURL, "error", err)
 		time.Sleep(3 * time.Second)
 	}
 }
