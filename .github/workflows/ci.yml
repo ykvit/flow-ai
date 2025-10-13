@@ -90,7 +90,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm install
+        run: npm ci
 
       - name: Check TypeScript types
         working-directory: frontend
