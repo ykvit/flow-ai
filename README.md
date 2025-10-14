@@ -19,7 +19,9 @@ Flow-AI is a powerful, self-hostable, and user-friendly web interface for intera
     -   **Database:** SQLite (with WAL mode)
     -   **API Documentation:** OpenAPI (Swagger) via `swaggo`
 -   **LLM Engine:** [Ollama](https://ollama.com/)
--   **Frontend:** (To be developed)
+-   **Frontend:** React (Vite)
+    -   **UI:** Material Web Components (`@material/web`)
+    -   **State Management:** Zustand
 -   **Deployment:** Docker & Docker Compose, managed via `Makefile`.
 
 ---
@@ -134,6 +136,14 @@ Our `Makefile` provides simple commands for all common tasks. Run `make` or `mak
 | Command | Description |
 | :--- | :--- |
 | `make test-ci`| 🤖 Runs backend tests for CI (no cache, clean build). |
+
+#### Database Migrations
+
+| Command | Description |
+| :--- | :--- |
+| `make migrate-create` | 📦 Creates new SQL migration files. Usage: `make migrate-create name=...` |
+| `make migrate-up` | 📈 Applies all pending database migrations. |
+| `make migrate-down` | 📉 Rolls back the last applied database migration. |
 
 ## 📚 API Documentation
 

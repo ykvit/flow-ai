@@ -17,7 +17,7 @@ Our infrastructure is built on three key principles:
 -   **`compose.prod.yaml`**: The override for production. Builds from the final, optimized stage of the `Dockerfile` and runs the application behind an Nginx reverse proxy.
 -   **`compose.test.yaml`**: The override for automated testing. Re-purposes the services to act as test runners and uses fully isolated, temporary volumes.
 -   **`compose.gpu.yaml`**: An optional override that can be layered on top of any environment to add NVIDIA GPU acceleration to the `ollama` service.
--   **`Dockerfile`**: A multi-stage build file that creates optimized, reproducible images. It pins versions of all tools (`Go`, `golangci-lint`, etc.) to guarantee that builds are identical everywhere.
+-   **`Dockerfile`**: A multi-stage build file that creates optimized, reproducible images. It pins versions of all tools (`Go`, `golangci-lint`, etc.) to guarantee that builds are identical everywhere. **The builder stage uses a Debian-based image for robust CGo support, while the final stage remains on minimal Alpine.**
 
 ## Key Design Patterns
 

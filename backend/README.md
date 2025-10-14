@@ -10,10 +10,11 @@ The backend follows the principles of Clean Architecture to ensure a clear separ
 
 -   **/cmd/server**: The main entry point of the application.
 -   **/internal/app**: The core application logic, responsible for initializing and wiring all components together.
--   **/internal/api**: Contains HTTP handlers, routing (`go-chi`), and API response models.
+-   **/internal/api**: Contains HTTP handlers, routing (`go-chi`), input validation, and API response models.
 -   **/internal/service**: Holds the core business logic.
 -   **/internal/repository**: Manages all data persistence via a `Repository` interface, with a concrete implementation for **SQLite**.
--   **/internal/database**: Contains logic for initializing the SQLite connection and schema.
+-   **/internal/database**: Contains logic for initializing the SQLite connection and running **schema migrations**.
+-   **/internal/errors**: Defines **custom sentinel errors** used across the service layer.
 -   **/internal/llm**: Abstracts communication with Ollama via an `LLMProvider` interface.
 -   **/internal/model**: Defines the core data structures (`Chat`, `Message`).
 -   **/internal/config**: Handles loading of bootstrap configuration using **Viper** from a `.env` file and environment variables.
@@ -23,6 +24,8 @@ The backend follows the principles of Clean Architecture to ensure a clear separ
 
 -   **Real-time Chat Streaming**: Uses Server-Sent Events (SSE) to stream responses from the LLM to the client.
 -   **Advanced Chat Persistence**: Saves all chat history in a local SQLite database. The schema supports a tree-like structure, enabling features like **response regeneration** and conversation branching.
+-   **Version-Controlled Database Schema**: Manages all database changes through `golang-migrate`, ensuring predictable and automated schema evolution.
+-   **Input Validation**: Enforces strict validation rules on all incoming API requests using `go-playground/validator`.
 -   **Dynamic Title Generation**: Automatically creates a concise title for new conversations by prompting a support model.
 -   **Full Model Management**: Provides a complete API to list, pull, and delete local Ollama models.
 -   **Dynamic & Self-Healing Configuration**: On first launch, the `SettingsService` discovers available Ollama models, selects one as a default, and saves the configuration to the database. It can self-heal if models are added later.
@@ -38,9 +41,9 @@ After making changes to the API handlers (adding or modifying routes/parameters)
 make swag
 ```
 
-## Code Quality
+## Development Workflow
 
-We use a suite of tools to maintain high code quality, all conveniently wrapped in `make` commands. All commands should be run from the **project root**.
+We use a suite of tools to maintain high code quality and streamline development, all conveniently wrapped in `make` commands. All commands should be run from the **project root**.
 
 -   **To format all Go code:**
     ```sh
@@ -49,6 +52,14 @@ We use a suite of tools to maintain high code quality, all conveniently wrapped 
 -   **To run the linter and check for issues:**
     ```sh
     make lint
+    ```
+-   **To manage database migrations:**
+    ```sh
+    # Create new migration files
+    make migrate-create name=your_migration_name
+
+    # Apply migrations (usually not needed, as `make dev` does this automatically)
+    make migrate-up
     ```
 
 ## Testing
@@ -75,7 +86,12 @@ While the primary method is using Docker Compose (`make dev` from the project ro
     LOG_LEVEL="DEBUG"
     ```
 
-3.  **Run the application:** From the `backend/` directory, execute:
+3.  **Apply database migrations:** Before the first run, you must create the database schema. Ensure you have the `migrate` CLI installed (see `Dockerfile` for installation method) and run from the **project root**:
+    ```sh
+    make migrate-up
+    ```
+
+4.  **Run the application:** From the `backend/` directory, execute:
     ```sh
     go run ./cmd/server
     ```
