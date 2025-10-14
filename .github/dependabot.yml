@@ -5,30 +5,60 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
     commit-message:
       prefix: "chore(actions)"
     labels:
       - "dependencies"
       - "github-actions"
+    open-pull-requests-limit: 3
+    rebase-strategy: "auto"
+    # Group all GitHub Actions updates into a single PR
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   # Maintain dependencies for Go backend
   - package-ecosystem: "gomod"
     directory: "/backend"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
     commit-message:
       prefix: "chore(deps-backend)"
     labels:
       - "dependencies"
       - "go"
+    open-pull-requests-limit: 3
+    rebase-strategy: "auto"
+    # Group all Go module updates into a single PR
+    groups:
+      go-backend:
+        patterns:
+          - "*"
 
   # Maintain dependencies for npm frontend
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
     commit-message:
       prefix: "chore(deps-frontend)"
     labels:
       - "dependencies"
       - "npm"
+    open-pull-requests-limit: 3
+    rebase-strategy: "auto"
+    # Group all npm package updates into a single PR
+    groups:
+      npm-frontend:
+        patterns:
+          - "*"
