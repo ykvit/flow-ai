@@ -5,15 +5,18 @@ import (
 	"log/slog"
 	"net/http"
 
+	app_errors "flow-ai/backend/internal/errors"
 	"flow-ai/backend/internal/llm"
 	"flow-ai/backend/internal/service"
 )
 
-// ModelHandler handles HTTP requests for model management.
+// ModelHandler handles HTTP requests for managing local Ollama models.
+// It serves as a bridge between the HTTP layer and the model management service.
 type ModelHandler struct {
 	service *service.ModelService
 }
 
+// NewModelHandler creates a new instance of ModelHandler.
 func NewModelHandler(svc *service.ModelService) *ModelHandler {
 	return &ModelHandler{service: svc}
 }
@@ -29,7 +32,7 @@ func NewModelHandler(svc *service.ModelService) *ModelHandler {
 func (h *ModelHandler) HandleListModels(w http.ResponseWriter, r *http.Request) {
 	models, err := h.service.List(r.Context())
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not retrieve models", err)
+		respondWithError(w, err)
 		return
 	}
 	respondWithJSON(w, http.StatusOK, models)
@@ -41,7 +44,7 @@ func (h *ModelHandler) HandleListModels(w http.ResponseWriter, r *http.Request) 
 // @Tags         Models
 // @Accept       json
 // @Produce      json
-// @Param        modelRequest  body  llm.ShowModelRequest  true  "Model Name"
+// @Param        modelRequest  body      llm.ShowModelRequest  true  "Model Name"
 // @Success      200           {object}  llm.ModelInfo
 // @Failure      400           {object}  ErrorResponse
 // @Failure      404           {object}  ErrorResponse
@@ -49,12 +52,14 @@ func (h *ModelHandler) HandleListModels(w http.ResponseWriter, r *http.Request) 
 func (h *ModelHandler) HandleShowModel(w http.ResponseWriter, r *http.Request) {
 	var req llm.ShowModelRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload", err)
+		respondWithError(w, app_errors.ErrValidation)
 		return
 	}
+	// Note: Validation for the model name itself happens within the Ollama provider,
+	// which will return an error if the model doesn't exist.
 	info, err := h.service.Show(r.Context(), &req)
 	if err != nil {
-		respondWithError(w, http.StatusNotFound, "Could not get model info", err)
+		respondWithError(w, err)
 		return
 	}
 	respondWithJSON(w, http.StatusOK, info)
@@ -66,19 +71,20 @@ func (h *ModelHandler) HandleShowModel(w http.ResponseWriter, r *http.Request) {
 // @Tags         Models
 // @Accept       json
 // @Produce      json
-// @Param        modelRequest  body  llm.DeleteModelRequest  true  "Model Name to Delete"
+// @Param        modelRequest  body      llm.DeleteModelRequest  true  "Model Name to Delete"
 // @Success      200           {object}  StatusResponse
 // @Failure      400           {object}  ErrorResponse
+// @Failure      404           {object}  ErrorResponse
 // @Failure      500           {object}  ErrorResponse
 // @Router       /v1/models [delete]
 func (h *ModelHandler) HandleDeleteModel(w http.ResponseWriter, r *http.Request) {
 	var req llm.DeleteModelRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload", err)
+		respondWithError(w, app_errors.ErrValidation)
 		return
 	}
 	if err := h.service.Delete(r.Context(), &req); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not delete model", err)
+		respondWithError(w, err)
 		return
 	}
 	respondWithJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
@@ -89,8 +95,9 @@ func (h *ModelHandler) HandleDeleteModel(w http.ResponseWriter, r *http.Request)
 // @Description  Downloads a model from the Ollama registry. This is a streaming endpoint.
 // @Tags         Models
 // @Accept       json
-// @Produce      text/event-stream
-// @Param        modelRequest  body  llm.PullModelRequest  true  "Model Name to Pull"
+// @Produce      application/json
+// @Description  Downloads a model from the Ollama registry. This is a streaming endpoint (SSE).
+// @Param        modelRequest  body      llm.PullModelRequest  true  "Model Name to Pull"
 // @Success      200           {object}  llm.PullStatus "Stream of progress status"
 // @Failure      400           {object}  ErrorResponse "Sent as a stream error event"
 // @Router       /v1/models/pull [post]
@@ -107,9 +114,12 @@ func (h *ModelHandler) HandlePullModel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	streamChan := make(chan llm.PullStatus)
+	// The service call is launched in a goroutine to allow the handler to immediately
+	// start listening for and processing stream events.
 	go func() {
-		err := h.service.Pull(r.Context(), &req, streamChan)
-		if err != nil {
+		// Errors from the service are logged here, as they are also propagated
+		// through the stream channel to the client.
+		if err := h.service.Pull(r.Context(), &req, streamChan); err != nil {
 			slog.Error("Error from model pull service", "model", req.Name, "error", err)
 		}
 	}()
@@ -120,9 +130,10 @@ func (h *ModelHandler) HandlePullModel(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
+		// The stream itself can contain error messages from the provider.
+		// These are logged for visibility on the server-side.
 		if chunk.Error != "" {
 			slog.Warn("Received an error in the pull stream", "model", req.Name, "error", chunk.Error)
-			// The error is already being sent to the client via the stream, so we just log here.
 		}
 
 		if err := writeStreamEvent(w, chunk); err != nil {

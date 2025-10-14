@@ -2,19 +2,27 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 
-	_ "github.com/mattn/go-sqlite3" // Import the sqlite3 driver.
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+
+	// Blank import for the file source driver used by golang-migrate.
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	// Blank import for the CGo-based SQLite driver.
+	_ "github.com/mattn/go-sqlite3"
 )
 
-// InitDB connects to the SQLite database and runs migrations.
+// InitDB initializes the database connection, enables WAL mode, and applies all
+// pending database migrations. It's the single entry point for database setup.
 func InitDB(dataSourceName string) (*sql.DB, error) {
-	// Ensure the directory for the database file exists.
+	// Ensure the parent directory for the database file exists.
 	dir := filepath.Dir(dataSourceName)
-	// [FIX] G301: Use more restrictive directory permissions as recommended by gosec.
 	if err := os.MkdirAll(dir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
@@ -28,66 +36,91 @@ func InitDB(dataSourceName string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Enable WAL mode for better concurrency.
-	// This allows readers to not block writers.
+	// Enable Write-Ahead Logging (WAL) mode for better concurrency.
+	// This allows read operations to proceed while write operations are in progress.
 	if _, err := db.Exec("PRAGMA journal_mode=WAL;"); err != nil {
-		// [FIX] Switched to slog for consistent, structured logging.
 		slog.Warn("Failed to enable WAL mode for SQLite, continuing without it.", "error", err)
 	}
 
-	if err := createTables(db); err != nil {
-		return nil, fmt.Errorf("failed to create tables: %w", err)
+	if err := runMigrations(db); err != nil {
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return db, nil
 }
 
-// createTables executes the SQL statements to create the database schema.
-func createTables(db *sql.DB) error {
-	schema := `
-		CREATE TABLE IF NOT EXISTS chats (
-			id TEXT PRIMARY KEY,
-			user_id TEXT NOT NULL,
-			title TEXT NOT NULL,
-			model TEXT NOT NULL,
-			created_at DATETIME NOT NULL,
-			updated_at DATETIME NOT NULL
-		);
-		CREATE INDEX IF NOT EXISTS idx_chats_user_id_updated_at ON chats(user_id, updated_at DESC);
+// runMigrations orchestrates the database schema migration process. It ensures the
+// database schema is always up-to-date with the version defined in the SQL files.
+func runMigrations(db *sql.DB) error {
+	// Create a migration driver instance for SQLite.
+	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
+	if err != nil {
+		return fmt.Errorf("could not create sqlite migration driver: %w", err)
+	}
 
-		CREATE TABLE IF NOT EXISTS messages (
-			id TEXT PRIMARY KEY,
-			chat_id TEXT NOT NULL,
-			parent_id TEXT,
-			role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
-			status TEXT,
-			content TEXT NOT NULL,
-			model TEXT,
-			timestamp DATETIME NOT NULL,
-			metadata TEXT,
-			context BLOB,
-			is_active BOOLEAN NOT NULL DEFAULT TRUE,
-			FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
-			FOREIGN KEY (parent_id) REFERENCES messages(id) ON DELETE SET NULL
-		);
-		CREATE INDEX IF NOT EXISTS idx_messages_chat_id_active_timestamp ON messages(chat_id, is_active, timestamp);
-		CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_id);
+	// Reliably locate the migrations directory regardless of the execution context.
+	migrationsPath, err := getMigrationsPath()
+	if err != nil {
+		return err
+	}
 
-		CREATE TABLE IF NOT EXISTS attachments (
-			id TEXT PRIMARY KEY,
-			message_id TEXT NOT NULL,
-			file_path TEXT NOT NULL,
-			mime_type TEXT NOT NULL,
-			size_bytes INTEGER NOT NULL,
-			created_at DATETIME NOT NULL,
-			FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
-		);
+	// Initialize the migrate instance with the file source and database driver.
+	m, err := migrate.NewWithDatabaseInstance(
+		migrationsPath,
+		"sqlite3",
+		driver,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
 
-		CREATE TABLE IF NOT EXISTS settings (
-			key TEXT PRIMARY KEY,
-			value TEXT NOT NULL
-		);
-	`
-	_, err := db.Exec(schema)
-	return err
+	slog.Info("Applying database migrations...")
+	// The `Up` command is idempotent; it applies only the migrations that haven't
+	// been applied yet. `migrate.ErrNoChange` is not a critical error.
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to apply migrations: %w", err)
+	}
+
+	// Log the final state of the database schema for visibility.
+	version, dirty, err := m.Version()
+	if err != nil {
+		return fmt.Errorf("failed to get migration version: %w", err)
+	}
+
+	slog.Info("Database migration process complete", "version", version, "is_dirty", dirty)
+	if dirty {
+		slog.Error("DATABASE IS DIRTY. This indicates a failed migration and requires manual intervention.")
+	}
+	return nil
+}
+
+// getMigrationsPath dynamically finds the path to the migrations directory.
+// This robust approach handles different execution contexts: running from source
+// via `go run`, running tests via `go test`, or running in the final Docker container.
+func getMigrationsPath() (string, error) {
+	// `runtime.Caller(0)` returns information about the function that calls it.
+	// Here, it gives us the path to this source file (`sqlite.go`).
+	_, b, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", errors.New("cannot determine current file path for migration discovery")
+	}
+	// The directory containing this file is `.../internal/database`.
+	basepath := filepath.Dir(b)
+
+	// The migrations are located in a sibling directory.
+	localPath := filepath.Join(basepath, "migrations")
+
+	// This path will resolve correctly for local development and testing.
+	if _, err := os.Stat(localPath); err == nil {
+		return "file://" + localPath, nil
+	}
+
+	// This is a fallback for the production Docker container, where migrations
+	// are copied to a specific, known location.
+	containerPath := "/app/migrations"
+	if _, err := os.Stat(containerPath); err == nil {
+		return "file://" + containerPath, nil
+	}
+
+	return "", fmt.Errorf("migrations directory not found: tried %s and %s", localPath, containerPath)
 }

@@ -69,6 +69,7 @@ backend/flow-dev.db*
 backend/data/
 backend/flow-dev.db-wal
 backend/flow-dev.db-shm
+backend/sqlite3*
 
 # =============================================================================
 # Local Environment Configuration

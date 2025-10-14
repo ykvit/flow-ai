@@ -4,32 +4,38 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"log/slog"
 	"time"
 
 	"flow-ai/backend/internal/model"
 )
 
-// queryable is a helper interface that allows using both *sql.DB and *sql.Tx.
+// queryable is a helper interface that abstracts over `*sql.DB` and `*sql.Tx`.
+// This allows methods like `getActiveMessagesByChatID` to be reused both inside
+// and outside of explicit transactions.
 type queryable interface {
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 }
 
+// sqliteRepository is the concrete implementation of the Repository interface for SQLite.
 type sqliteRepository struct {
 	db *sql.DB
 }
 
+// NewSQLiteRepository creates a new SQLite repository instance.
 func NewSQLiteRepository(db *sql.DB) Repository {
 	return &sqliteRepository{db: db}
 }
 
+// BeginTx starts a new database transaction.
 func (r *sqliteRepository) BeginTx(ctx context.Context) (*sql.Tx, error) {
 	return r.db.BeginTx(ctx, nil)
 }
 
 // --- Chat Methods ---
+
 func (r *sqliteRepository) CreateChat(ctx context.Context, chat *model.Chat) error {
 	query := "INSERT INTO chats (id, user_id, title, model, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
 	_, err := r.db.ExecContext(ctx, query, chat.ID, chat.UserID, chat.Title, chat.Model, chat.CreatedAt, chat.UpdatedAt)
@@ -42,8 +48,9 @@ func (r *sqliteRepository) GetChat(ctx context.Context, chatID string) (*model.C
 	var chat model.Chat
 	err := row.Scan(&chat.ID, &chat.UserID, &chat.Title, &chat.Model, &chat.CreatedAt, &chat.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("chat not found")
+		// Abstract away the driver-specific error.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -56,6 +63,7 @@ func (r *sqliteRepository) GetChats(ctx context.Context, userID string) ([]*mode
 	if err != nil {
 		return nil, err
 	}
+	// `defer rows.Close()` is crucial to prevent leaking database connections.
 	defer func() {
 		if err := rows.Close(); err != nil {
 			slog.Error("Failed to close rows in GetChats", "error", err)
@@ -75,34 +83,60 @@ func (r *sqliteRepository) GetChats(ctx context.Context, userID string) ([]*mode
 
 func (r *sqliteRepository) UpdateChatTitle(ctx context.Context, chatID, newTitle string) error {
 	query := "UPDATE chats SET title = ?, updated_at = ? WHERE id = ?"
-	_, err := r.db.ExecContext(ctx, query, newTitle, time.Now().UTC(), chatID)
-	return err
+	res, err := r.db.ExecContext(ctx, query, newTitle, time.Now().UTC(), chatID)
+	if err != nil {
+		return err
+	}
+	// For UPDATE or DELETE operations, it's good practice to check if any rows
+	// were actually affected. If not, the target entity likely didn't exist.
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *sqliteRepository) DeleteChat(ctx context.Context, chatID string) error {
 	query := "DELETE FROM chats WHERE id = ?"
-	_, err := r.db.ExecContext(ctx, query, chatID)
-	return err
+	res, err := r.db.ExecContext(ctx, query, chatID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // --- Message Methods ---
 
+// AddMessage wraps the core logic in a transaction to ensure atomicity.
+// Adding a message and updating the parent chat's timestamp should succeed or fail together.
 func (r *sqliteRepository) AddMessage(ctx context.Context, message *model.Message, chatID string) error {
 	tx, err := r.BeginTx(ctx)
 	if err != nil {
 		return err
 	}
+	// `defer tx.Rollback()` is a safeguard. If `tx.Commit()` is called, the
+	// rollback becomes a no-op. If any error occurs, the rollback is executed.
 	defer func() {
-		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
-			slog.Error("Failed to rollback transaction", "error", err)
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			slog.Error("Failed to rollback AddMessage transaction", "error", err)
 		}
 	}()
 
 	if err := r.AddMessageTx(ctx, tx, message, chatID); err != nil {
-		return fmt.Errorf("could not add message transactionally: %w", err)
+		return err
 	}
 	if err := r.UpdateChatTimestampTx(ctx, tx, chatID); err != nil {
-		return fmt.Errorf("could not update chat timestamp transactionally: %w", err)
+		return err
 	}
 
 	return tx.Commit()
@@ -117,16 +151,19 @@ func (r *sqliteRepository) GetMessageByID(ctx context.Context, messageID string)
 	row := r.db.QueryRowContext(ctx, query, messageID)
 	var msg model.Message
 	var chatID string
+	// Use `sql.NullString` and `sql.Null` types for columns that can be NULL
+	// to prevent `Scan` from failing.
 	var metadata, context, parentID, modelName sql.NullString
 
 	err := row.Scan(&msg.ID, &chatID, &parentID, &msg.Role, &msg.Content, &modelName, &msg.Timestamp, &metadata, &context)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("message with ID %s not found", messageID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
 
+	// Safely assign values from nullable columns to the struct fields.
 	if parentID.Valid {
 		msg.ParentID = &parentID.String
 	}
@@ -151,6 +188,7 @@ func (r *sqliteRepository) GetActiveMessagesByChatIDTx(ctx context.Context, tx *
 	return r.getActiveMessagesByChatID(ctx, tx, chatID)
 }
 
+// getActiveMessagesByChatID is a private helper that can run on either a `*sql.DB` or `*sql.Tx`.
 func (r *sqliteRepository) getActiveMessagesByChatID(ctx context.Context, q queryable, chatID string) ([]model.Message, error) {
 	query := `
 		SELECT id, parent_id, role, content, model, timestamp, metadata, context
@@ -208,8 +246,10 @@ func (r *sqliteRepository) GetLastActiveMessage(ctx context.Context, chatID stri
 	var context sql.NullString
 	err := row.Scan(&msg.ID, &context)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil // Not an error, just no messages
+		if errors.Is(err, sql.ErrNoRows) {
+			// In this specific case, returning `ErrNotFound` is more semantically
+			// correct than `nil, nil` for the service layer to interpret.
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -228,8 +268,11 @@ func (r *sqliteRepository) UpdateMessageContext(ctx context.Context, messageID s
 }
 
 // --- Transactional Methods ---
+// These methods expect to be passed an existing transaction `*sql.Tx` and do not commit or rollback.
+// This allows them to be composed into larger atomic operations.
 
 func (r *sqliteRepository) AddMessageTx(ctx context.Context, tx *sql.Tx, message *model.Message, chatID string) error {
+	// Handle empty or "null" JSON from the model layer gracefully.
 	var metadata sql.NullString
 	if len(message.Metadata) > 0 && string(message.Metadata) != "null" {
 		metadata.String = string(message.Metadata)
@@ -250,12 +293,15 @@ func (r *sqliteRepository) AddMessageTx(ctx context.Context, tx *sql.Tx, message
 		message.Timestamp,
 		metadata,
 		message.Context,
-		true,
+		true, // New messages are always active.
 	)
 	return err
 }
 
+// DeactivateBranchTx performs a recursive update to mark a message and all its
+// descendants as inactive. This is the core of the "regeneration" logic.
 func (r *sqliteRepository) DeactivateBranchTx(ctx context.Context, tx *sql.Tx, messageID string) error {
+	// Common Table Expression (CTE) for recursive traversal is efficient in SQLite.
 	query := `
 		WITH RECURSIVE branch_ids(id) AS (
 			VALUES(?)

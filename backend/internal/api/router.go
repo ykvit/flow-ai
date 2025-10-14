@@ -4,28 +4,46 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-
+	// This blank import is required by swaggo to find the API definitions.
 	_ "flow-ai/backend/docs"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+// NewRouter creates and configures a new chi router with all the application's routes.
 func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger) // Chi's default logger is fine for dev
-	r.Use(middleware.Recoverer)
+	// --- Global Middleware ---
+	// These are applied to every request.
+	r.Use(middleware.RequestID) // Injects a unique request ID into the context.
+	r.Use(middleware.RealIP)    // Sets the remote address to the real IP from proxy headers.
+	r.Use(middleware.Logger)    // Logs the start and end of each request with useful info.
+	r.Use(middleware.Recoverer) // Recovers from panics and returns a 500 error.
 
-	// Swagger documentation route
+	// --- Public Routes ---
+	// Routes that don't require authentication or versioning.
+
+	// Serves the auto-generated Swagger UI for API documentation.
 	r.Get("/api/swagger/*", httpSwagger.WrapHandler)
 
-	// API version 1 routes
+	// A simple health check endpoint. Crucial for container orchestration systems
+	// like Kubernetes to perform liveness and readiness probes.
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		// The response body itself is not critical, but a 200 OK status is.
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
+
+	// --- API Version 1 Routes ---
+	// All primary API endpoints are grouped under the /api/v1 prefix.
 	r.Route("/api/v1", func(r chi.Router) {
-		// Group for routes with a standard request timeout
+
+		// Group for standard JSON API routes that should have a request timeout
+		// to prevent client connections from hanging indefinitely.
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Timeout(60 * time.Second))
 
@@ -45,7 +63,8 @@ func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 			r.Delete("/models", modelHandler.HandleDeleteModel)
 		})
 
-		// Group for long-running streaming routes that should NOT have a timeout
+		// Group for long-running, streaming endpoints. These routes must NOT have a timeout,
+		// as they are designed to hold a connection open for an extended period.
 		r.Group(func(r chi.Router) {
 			r.Post("/chats/messages", chatHandler.HandleStreamMessage)
 			r.Post("/chats/{chatID}/messages/{messageID}/regenerate", chatHandler.HandleRegenerateMessage)
@@ -53,8 +72,9 @@ func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 		})
 	})
 
-	// In a production setup with Nginx, this file server is not strictly necessary,
-	// but it's useful for simplified local development without the reverse proxy.
+	// --- Frontend File Server ---
+	// This serves the static React frontend. In a typical production deployment,
+	// this would be handled by Nginx, but it's useful for simplified local development.
 	fileServer := http.FileServer(http.Dir("./frontend/dist"))
 	r.Handle("/*", http.StripPrefix("/", fileServer))
 
