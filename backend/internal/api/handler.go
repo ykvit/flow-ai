@@ -89,9 +89,10 @@ func (h *ChatHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 // @Failure      500  {object}  ErrorResponse
 // @Router       /v1/chats [get]
 func (h *ChatHandler) GetChats(w http.ResponseWriter, r *http.Request) {
-	// Hardcoded for now; will be replaced by user identity from auth middleware.
-	userID := "default-user"
-	chats, err := h.chatService.ListChats(r.Context(), userID)
+	// In the current single-user model, we fetch all available chats.
+	// When authentication is added, user identity will be extracted from the
+	// request context (e.g., from a JWT middleware) and passed to the service layer.
+	chats, err := h.chatService.ListChats(r.Context())
 	if err != nil {
 		respondWithError(w, err)
 		return

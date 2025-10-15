@@ -70,8 +70,11 @@ func (s *ChatService) DeleteChat(ctx context.Context, chatID string) error {
 	return err
 }
 
-func (s *ChatService) ListChats(ctx context.Context, userID string) ([]*model.Chat, error) {
-	return s.repo.GetChats(ctx, userID)
+// ListChats retrieves all chat sessions.
+// In the current single-user model, this is a direct passthrough to the repository.
+// Future multi-user implementations would introduce filtering/pagination logic here.
+func (s *ChatService) ListChats(ctx context.Context) ([]*model.Chat, error) {
+	return s.repo.GetChats(ctx)
 }
 
 func (s *ChatService) GetFullChat(ctx context.Context, chatID string) (*model.FullChat, error) {
@@ -164,7 +167,8 @@ func (s *ChatService) HandleNewMessage(
 	if isNewChat {
 		chatID = uuid.NewString()
 		// For new chats, use a truncated version of the first message as a temporary title.
-		chat := &model.Chat{ID: chatID, UserID: "default-user", Title: truncate(req.Content, 50), Model: modelToUse, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+		// The chat is created without any user association in this single-user model.
+		chat := &model.Chat{ID: chatID, Title: truncate(req.Content, 50), Model: modelToUse, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 		if err := s.repo.CreateChat(ctx, chat); err != nil {
 			slog.Error("Error creating chat", "error", err)
 			streamChan <- model.StreamResponse{Error: "Could not create chat"}

@@ -37,16 +37,16 @@ func (r *sqliteRepository) BeginTx(ctx context.Context) (*sql.Tx, error) {
 // --- Chat Methods ---
 
 func (r *sqliteRepository) CreateChat(ctx context.Context, chat *model.Chat) error {
-	query := "INSERT INTO chats (id, user_id, title, model, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
-	_, err := r.db.ExecContext(ctx, query, chat.ID, chat.UserID, chat.Title, chat.Model, chat.CreatedAt, chat.UpdatedAt)
+	query := "INSERT INTO chats (id, title, model, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+	_, err := r.db.ExecContext(ctx, query, chat.ID, chat.Title, chat.Model, chat.CreatedAt, chat.UpdatedAt)
 	return err
 }
 
 func (r *sqliteRepository) GetChat(ctx context.Context, chatID string) (*model.Chat, error) {
-	query := "SELECT id, user_id, title, model, created_at, updated_at FROM chats WHERE id = ?"
+	query := "SELECT id, title, model, created_at, updated_at FROM chats WHERE id = ?"
 	row := r.db.QueryRowContext(ctx, query, chatID)
 	var chat model.Chat
-	err := row.Scan(&chat.ID, &chat.UserID, &chat.Title, &chat.Model, &chat.CreatedAt, &chat.UpdatedAt)
+	err := row.Scan(&chat.ID, &chat.Title, &chat.Model, &chat.CreatedAt, &chat.UpdatedAt)
 	if err != nil {
 		// Abstract away the driver-specific error.
 		if errors.Is(err, sql.ErrNoRows) {
@@ -57,9 +57,11 @@ func (r *sqliteRepository) GetChat(ctx context.Context, chatID string) (*model.C
 	return &chat, nil
 }
 
-func (r *sqliteRepository) GetChats(ctx context.Context, userID string) ([]*model.Chat, error) {
-	query := "SELECT id, user_id, title, model, created_at, updated_at FROM chats WHERE user_id = ? ORDER BY updated_at DESC"
-	rows, err := r.db.QueryContext(ctx, query, userID)
+func (r *sqliteRepository) GetChats(ctx context.Context) ([]*model.Chat, error) {
+	// In the current single-user model, this fetches all chats without filtering.
+	// The query is intentionally simple.
+	query := "SELECT id, title, model, created_at, updated_at FROM chats ORDER BY updated_at DESC"
+	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +75,7 @@ func (r *sqliteRepository) GetChats(ctx context.Context, userID string) ([]*mode
 	var chats []*model.Chat
 	for rows.Next() {
 		var chat model.Chat
-		if err := rows.Scan(&chat.ID, &chat.UserID, &chat.Title, &chat.Model, &chat.CreatedAt, &chat.UpdatedAt); err != nil {
+		if err := rows.Scan(&chat.ID, &chat.Title, &chat.Model, &chat.CreatedAt, &chat.UpdatedAt); err != nil {
 			return nil, err
 		}
 		chats = append(chats, &chat)

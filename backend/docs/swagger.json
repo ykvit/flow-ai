@@ -651,10 +651,6 @@
                 "updated_at": {
                     "type": "string",
                     "example": "2025-09-08T14:05:00Z"
-                },
-                "user_id": {
-                    "type": "string",
-                    "example": "default-user"
                 }
             }
         },
@@ -686,10 +682,6 @@
                 "updated_at": {
                     "type": "string",
                     "example": "2025-09-08T14:05:00Z"
-                },
-                "user_id": {
-                    "type": "string",
-                    "example": "default-user"
                 }
             }
         },

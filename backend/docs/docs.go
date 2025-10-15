@@ -658,10 +658,6 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2025-09-08T14:05:00Z"
-                },
-                "user_id": {
-                    "type": "string",
-                    "example": "default-user"
                 }
             }
         },
@@ -693,10 +689,6 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2025-09-08T14:05:00Z"
-                },
-                "user_id": {
-                    "type": "string",
-                    "example": "default-user"
                 }
             }
         },

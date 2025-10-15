@@ -1,5 +1,4 @@
 -- Down migration for initial schema
-DROP INDEX IF EXISTS idx_chats_user_id_updated_at;
 DROP TABLE IF EXISTS chats;
 
 DROP INDEX IF EXISTS idx_messages_chat_id_active_timestamp;

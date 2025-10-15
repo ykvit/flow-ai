@@ -9,7 +9,6 @@ import (
 type Chat struct {
 	ID        string    `json:"id" example:"4b3b5a34-571f-47e3-abd1-a7dbee9d92fe"`
 	Title     string    `json:"title" example:"History of the Roman Empire"`
-	UserID    string    `json:"user_id" example:"default-user"`
 	CreatedAt time.Time `json:"created_at" example:"2025-09-08T14:00:00Z"`
 	UpdatedAt time.Time `json:"updated_at" example:"2025-09-08T14:05:00Z"`
 	Model     string    `json:"model" example:"qwen:0.5b"`
