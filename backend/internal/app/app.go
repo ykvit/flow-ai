@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -19,30 +20,19 @@ import (
 	"flow-ai/backend/internal/service"
 )
 
-func Run() int {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		// slog is not yet configured, so use the default logger for this critical error.
-		slog.Error("Failed to load configuration", "error", err)
-		return 1
-	}
+type App struct {
+	Config *config.Config
+	DB     *sql.DB
+	Server *http.Server
+}
 
-	setupLogger(cfg.LogLevel)
-
-	logConfigSource()
-
+func NewApp(cfg *config.Config) (*App, error) {
 	waitForOllama(cfg.OllamaURL)
 
 	db, err := database.InitDB(cfg.DatabasePath)
 	if err != nil {
-		slog.Error("Failed to initialize database", "error", err)
-		return 1
+		return nil, err
 	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			slog.Error("Failed to close database connection", "error", err)
-		}
-	}()
 	slog.Info("Successfully connected to SQLite database.")
 
 	repo := repository.NewSQLiteRepository(db)
@@ -51,8 +41,10 @@ func Run() int {
 
 	appSettings, err := settingsService.InitAndGet(context.Background(), cfg.InitialSystemPrompt)
 	if err != nil {
-		slog.Error("Failed to initialize application settings", "error", err)
-		return 1
+		if closeErr := db.Close(); closeErr != nil {
+			slog.Error("Failed to close database connection during initial setup error", "error", closeErr)
+		}
+		return nil, err
 	}
 	slog.Info("Loaded application settings", "main_model", appSettings.MainModel)
 
@@ -71,8 +63,36 @@ func Run() int {
 		IdleTimeout:       120 * time.Second,
 	}
 
+	return &App{
+		Config: cfg,
+		DB:     db,
+		Server: server,
+	}, nil
+}
+
+func Run() int {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		slog.Error("Failed to load configuration", "error", err)
+		return 1
+	}
+
+	setupLogger(cfg.LogLevel)
+	logConfigSource()
+
+	app, err := NewApp(cfg)
+	if err != nil {
+		slog.Error("Failed to initialize application", "error", err)
+		return 1
+	}
+	defer func() {
+		if err := app.DB.Close(); err != nil {
+			slog.Error("Failed to close database connection", "error", err)
+		}
+	}()
+
 	slog.Info("Starting server", "port", 8000)
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := app.Server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("Server failed", "error", err)
 		return 1
 	}

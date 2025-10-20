@@ -6,18 +6,18 @@ import (
 	"net/http"
 
 	app_errors "flow-ai/backend/internal/errors"
+	"flow-ai/backend/internal/interfaces"
 	"flow-ai/backend/internal/llm"
-	"flow-ai/backend/internal/service"
 )
 
 // ModelHandler handles HTTP requests for managing local Ollama models.
 // It serves as a bridge between the HTTP layer and the model management service.
 type ModelHandler struct {
-	service *service.ModelService
+	service interfaces.ModelService
 }
 
 // NewModelHandler creates a new instance of ModelHandler.
-func NewModelHandler(svc *service.ModelService) *ModelHandler {
+func NewModelHandler(svc interfaces.ModelService) *ModelHandler {
 	return &ModelHandler{service: svc}
 }
 

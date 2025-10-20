@@ -184,8 +184,13 @@ func (s *SettingsService) saveToDB(ctx context.Context, settings *Settings) erro
 		"support_model": settings.SupportModel,
 	}
 
-	// Using `ON CONFLICT DO UPDATE` (UPSERT) simplifies the logic, as we don't
-	// need to check for existence before inserting or updating.
+	// ADD THIS BLOCK TO MAKE THE ORDER DETERMINISTIC
+	keys := make([]string, 0, len(settingsMap))
+	for k := range settingsMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	stmt, err := tx.PrepareContext(ctx, "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
 	if err != nil {
 		return err
@@ -196,8 +201,9 @@ func (s *SettingsService) saveToDB(ctx context.Context, settings *Settings) erro
 		}
 	}()
 
-	for key, value := range settingsMap {
-		if _, err := stmt.ExecContext(ctx, key, value); err != nil {
+	// ITERATE OVER SORTED KEYS
+	for _, key := range keys {
+		if _, err := stmt.ExecContext(ctx, key, settingsMap[key]); err != nil {
 			return err
 		}
 	}

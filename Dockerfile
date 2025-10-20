@@ -24,7 +24,8 @@ RUN apt-get update && apt-get install -y build-essential git wget
 RUN addgroup --system --gid 1001 appgroup && adduser --system --uid 1001 --ingroup appgroup appuser
 
 # Pin all development tool versions for fully reproducible builds.
-ENV MIGRATE_VERSION=v4.17.1
+ENV MIGRATE_VERSION=v4.19.0
+ENV MOCKERY_VERSION=v3.5.5
 # Build `migrate` from source with the 'sqlite3' tag to embed the necessary CGo driver.
 # This ensures the CLI works correctly without runtime dependencies.
 RUN go install -tags 'sqlite3' github.com/golang-migrate/migrate/v4/cmd/migrate@${MIGRATE_VERSION} && \
@@ -32,6 +33,7 @@ RUN go install -tags 'sqlite3' github.com/golang-migrate/migrate/v4/cmd/migrate@
 RUN go install golang.org/x/tools/cmd/goimports@v0.37.0
 RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
 RUN go install github.com/swaggo/swag/cmd/swag@v1.16.6
+RUN go install github.com/vektra/mockery/v3@${MOCKERY_VERSION}
 
 # Download Go modules before copying the rest of the source code to leverage Docker layer caching.
 COPY backend/go.mod backend/go.sum ./

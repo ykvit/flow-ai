@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	app_errors "flow-ai/backend/internal/errors"
+	"flow-ai/backend/internal/interfaces"
 	"flow-ai/backend/internal/model"
 	"flow-ai/backend/internal/service"
 
@@ -15,12 +16,12 @@ import (
 // ChatHandler encapsulates the HTTP transport logic for chat and settings-related endpoints.
 // It acts as a translator between the HTTP layer and the business logic (service) layer.
 type ChatHandler struct {
-	chatService     *service.ChatService
-	settingsService *service.SettingsService
+	chatService     interfaces.ChatService
+	settingsService interfaces.SettingsService
 }
 
 // NewChatHandler creates a new instance of ChatHandler with its required service dependencies.
-func NewChatHandler(chatSvc *service.ChatService, settingsSvc *service.SettingsService) *ChatHandler {
+func NewChatHandler(chatSvc interfaces.ChatService, settingsSvc interfaces.SettingsService) *ChatHandler {
 	return &ChatHandler{
 		chatService:     chatSvc,
 		settingsService: settingsSvc,

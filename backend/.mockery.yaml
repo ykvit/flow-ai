@@ -1,0 +1,23 @@
+build-tags: "test"
+
+packages:
+  flow-ai/backend/internal/repository:
+    config:
+      all: true
+      dir: "{{.InterfaceDir}}/mocks"
+      filename: "mock_{{.InterfaceName}}.go"
+      pkgname: "mocks"
+
+  flow-ai/backend/internal/llm:
+    config:
+      all: true
+      dir: "{{.InterfaceDir}}/mocks"
+      filename: "mock_{{.InterfaceName}}.go"
+      pkgname: "mocks"
+
+  flow-ai/backend/internal/interfaces:
+    config:
+      all: true
+      dir: "{{.InterfaceDir}}/mocks"
+      filename: "mock_{{.InterfaceName}}.go"
+      pkgname: "mocks"

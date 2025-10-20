@@ -7,12 +7,15 @@ echo "--- Preparing to run Go tests from $(pwd) ---"
 MODULE_PATH=$(grep -m 1 "module" go.mod | awk '{print $2}')
 echo "--- Running tests with coverage for module: ${MODULE_PATH} ---"
 
+COVER_PACKAGES=$(go list ./... | grep -v '/mocks' | grep -v '/tests' | tr '\n' ',')
+echo "--- Analyzing coverage for packages: ${COVER_PACKAGES} ---"
+
 mkdir -p /reports
 
 go test -v -race -count=1 -covermode=atomic -timeout 3m \
   -coverprofile=/reports/coverage.out \
-  -coverpkg=${MODULE_PATH}/... \
-  ${MODULE_PATH}/tests/...
+  -coverpkg=${COVER_PACKAGES} \
+  ${MODULE_PATH}/...
 TEST_EXIT_CODE=$?
 
 echo "\n--- Generating Coverage Reports ---"

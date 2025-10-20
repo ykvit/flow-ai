@@ -35,8 +35,7 @@ BACKEND_SERVICE_NAME := flow-ai
 FRONTEND_SERVICE_NAME := frontend
 
 # Declare all targets as .PHONY to prevent conflicts with files of the same name.
-.PHONY: help dev prod down logs swag lint format format-check dev-gpu prod-gpu down-dev down-prod down-test test test-backend test-frontend test-ci migrate-create migrate-up migrate-down
-
+.PHONY: help dev prod down logs swag lint format format-check dev-gpu prod-gpu down-dev down-prod down-test test test-backend test-frontend test-ci migrate-create migrate-up migrate-down tidy mocks
 # Set the default goal to 'help' so running `make` without arguments shows the help message.
 .DEFAULT_GOAL := help
 
@@ -62,8 +61,8 @@ test: ##> 🧪 Run all available tests for the project (backend & frontend).
 	@echo "\nNote: Frontend tests are not yet implemented. Structure is ready."
 	# @$(MAKE) test-frontend
 
-test-backend: ##> 🧪 (Backend) Run Go integration tests.
-	@echo "--- Running Go integration tests ---"
+test-backend: mocks ##> 🧪 (Backend) Run ALL Go tests (unit & integration).
+	@echo "--- Running Go unit and integration tests ---"
 	# Pass host UID/GID to the test container to ensure reports are owned by the host user.
 	# `--abort-on-container-exit` and `--exit-code-from` ensure make fails if tests fail.
 	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) up \
@@ -128,6 +127,14 @@ format-check: ##> 🧐 Check if Go code is formatted (for CI).
 	@echo "All files are correctly formatted."
 
 ##@ Code Quality & Docs
+tidy: ##> ✨ Tidy Go modules (add/remove dependencies).
+	@echo "--- Tidying Go modules ---"
+	@$(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) go mod tidy
+
+mocks: tidy ##> 🧙 Generate mocks for all interfaces.
+	@echo "--- Generating mocks ---"
+	@$(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) mockery
+
 swag: ##> 📄 Regenerate Swagger/OpenAPI documentation.
 	@echo "--- Regenerating Swagger documentation ---"
 	# Run as the host user to ensure generated docs have correct file permissions.
