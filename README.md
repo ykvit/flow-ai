@@ -16,10 +16,13 @@ Flow-AI is a powerful, self-hostable, and user-friendly web interface for intera
 
 -   **Backend:** Go (1.23+)
     -   **Web Framework:** Chi
-    -   **Database:** SQLite (with WAL mode)
+    -   **Database:** SQLite (with WAL mode) & `golang-migrate`
+    -   **Testing:** `testify`, `mockery`, `sqlmock`
     -   **API Documentation:** OpenAPI (Swagger) via `swaggo`
 -   **LLM Engine:** [Ollama](https://ollama.com/)
--   **Frontend:** (To be developed)
+-   **Frontend:** React (Vite)
+    -   **UI:** Material Web Components (`@material/web`)
+    -   **State Management:** Zustand
 -   **Deployment:** Docker & Docker Compose, managed via `Makefile`.
 
 ---
@@ -99,12 +102,15 @@ Our `Makefile` provides simple commands for all common tasks. Run `make` or `mak
 | `make prod` | 🚢 Starts the production environment (CPU). |
 | `make logs` | 📜 Tails the logs from the running development environment. |
 
-#### Testing
+#### Testing & Quality Assurance
 
 | Command | Description |
 | :--- | :--- |
-| `make test-backend` | 🧪 Runs backend integration tests and generates a coverage report. |
-| `make test-frontend` | 🧪 Runs frontend tests (structure is ready). |
+| `make test-backend` | 🧪 Runs the complete backend test suite (unit & integration) and generates a coverage report. |
+| `make lint` | 🔍 Runs the Go linter (`golangci-lint`) to check code quality. |
+| `make format`| ✨ Automatically formats all Go source code using `goimports`. |
+| `make mocks`| 🧙 **(New)** Regenerates all mock objects for unit testing. |
+| `make swag` | 📄 Regenerates the Swagger/OpenAPI documentation. |
 
 #### GPU-Accelerated Commands
 
@@ -112,14 +118,6 @@ Our `Makefile` provides simple commands for all common tasks. Run `make` or `mak
 | :--- | :--- |
 | `make dev-gpu` | 🚀 Starts the development environment with GPU support. |
 | `make prod-gpu`| 🚢 Starts the production environment with GPU support. |
-
-#### Code Quality & Docs
-
-| Command | Description |
-| :--- | :--- |
-| `make swag` | 📄 Regenerates the Swagger/OpenAPI documentation. |
-| `make lint` | 🔍 Runs the Go linter (`golangci-lint`) to check code quality. |
-| `make format`| ✨ Automatically formats all Go source code using `goimports`. |
 
 #### Cleanup Commands
 
@@ -129,11 +127,13 @@ Our `Makefile` provides simple commands for all common tasks. Run `make` or `mak
 | `make down-prod`| ⏹️ Stops and cleans up only the **PROD** environment. |
 | `make down` | ☢️ **Stops and cleans up ALL** project containers and volumes. |
 
-#### CI-Specific Commands
+#### Database Migrations
 
 | Command | Description |
 | :--- | :--- |
-| `make test-ci`| 🤖 Runs backend tests for CI (no cache, clean build). |
+| `make migrate-create` | 📦 Creates new SQL migration files. Usage: `make migrate-create name=...` |
+| `make migrate-up` | 📈 Applies all pending database migrations. |
+| `make migrate-down` | 📉 Rolls back the last applied database migration. |
 
 ## 📚 API Documentation
 
@@ -142,7 +142,7 @@ The backend includes interactive API documentation powered by Swagger UI. It's t
 -   **How to access:** Once the application is running, go to:
     **[http://localhost:3000/api/swagger/index.html](http://localhost:3000/api/swagger/index.html)**
 
-For a high-level overview of the API, see [API.md](./API.md). For a detailed explanation of the project architecture, see [DOCUMENTATION.md](./DOCUMENTATION.md).
+For a high-level overview of the API, see [API.md](./API.md). For a detailed explanation of the project architecture and testing strategy, see [DOCUMENTATION.md](./DOCUMENTATION.md).
 
 ## 🎯 Project Goals
 
@@ -150,7 +150,7 @@ The goal of Flow-AI is to provide an interface that treats conversations not as 
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a pull request or open an issue.
+Contributions are welcome! Please feel free to submit a pull request or open an issue. See the [CONTRIBUTING.md](./CONTRIBUTING.md) file for details.
 
 ## 📄 License
 

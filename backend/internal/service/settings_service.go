@@ -9,31 +9,38 @@ import (
 	"sort"
 	"time"
 
+	app_errors "flow-ai/backend/internal/errors"
 	"flow-ai/backend/internal/llm"
+	"flow-ai/backend/internal/repository"
 )
 
-// Settings holds the dynamic application settings.
+// Settings holds the dynamic, user-configurable application settings.
 type Settings struct {
-	// A global instruction for the model's behavior.
 	SystemPrompt string `json:"system_prompt" example:"You are a helpful assistant that always answers in Markdown format."`
-	// The primary model for new chats. Must be available locally.
-	MainModel string `json:"main_model" example:"qwen3:8b"`
-	// A model used for background tasks, like generating chat titles.
+	// The primary model for new chats. Must be an available local model.
+	MainModel string `json:"main_model" validate:"required" example:"qwen3:8b"`
+	// A model for background tasks like title generation. Can be the same as the main model.
 	SupportModel string `json:"support_model" example:"gemma3:4b"`
 }
 
+// SettingsService provides methods for managing application settings.
+// It includes logic for smart initialization and self-healing.
 type SettingsService struct {
 	db  *sql.DB
 	llm llm.LLMProvider
 }
 
+// NewSettingsService creates a new instance of SettingsService.
 func NewSettingsService(db *sql.DB, llmProvider llm.LLMProvider) *SettingsService {
 	return &SettingsService{db: db, llm: llmProvider}
 }
 
-// InitAndGet performs "smart initialization" on first run.
+// InitAndGet performs a "smart initialization" on the first application run.
+// If settings are not found in the database, it discovers available Ollama models
+// and creates a default configuration.
 func (s *SettingsService) InitAndGet(ctx context.Context, defaultSystemPrompt string) (*Settings, error) {
 	_, err := s.getFromDB(ctx)
+	// If settings already exist, no initialization is needed.
 	if err == nil {
 		slog.Info("Found existing settings in database. Initialization not needed.")
 		return s.Get(ctx)
@@ -45,7 +52,7 @@ func (s *SettingsService) InitAndGet(ctx context.Context, defaultSystemPrompt st
 	if discoveredModel == "" {
 		slog.Warn("Ollama has no models during initial setup. Settings will have empty model names.")
 	} else {
-		slog.Info("Discovered models in Ollama", "default_model", discoveredModel)
+		slog.Info("Discovered models in Ollama, selecting the most recent as default.", "default_model", discoveredModel)
 	}
 
 	initialSettings := &Settings{
@@ -62,7 +69,8 @@ func (s *SettingsService) InitAndGet(ctx context.Context, defaultSystemPrompt st
 	return initialSettings, nil
 }
 
-// Get retrieves current settings, self-healing if necessary.
+// Get retrieves current settings. It includes "self-healing" logic to automatically
+// select a model if the configured one is missing or not set.
 func (s *SettingsService) Get(ctx context.Context) (*Settings, error) {
 	settings, err := s.getFromDB(ctx)
 	if err != nil {
@@ -70,6 +78,7 @@ func (s *SettingsService) Get(ctx context.Context) (*Settings, error) {
 	}
 
 	needsUpdate := false
+	// Self-heal: If the main model is not set, try to find one.
 	if settings.MainModel == "" {
 		slog.Info("Main model is not set. Attempting to auto-discover from Ollama...")
 		discoveredModel := s.findLatestModel(ctx)
@@ -82,6 +91,7 @@ func (s *SettingsService) Get(ctx context.Context) (*Settings, error) {
 		}
 	}
 
+	// Self-heal: If the support model is not set, default to the main model.
 	if settings.SupportModel == "" && settings.MainModel != "" {
 		slog.Info("Support model is not set. Defaulting to main model", "model", settings.MainModel)
 		settings.SupportModel = settings.MainModel
@@ -90,6 +100,7 @@ func (s *SettingsService) Get(ctx context.Context) (*Settings, error) {
 
 	if needsUpdate {
 		slog.Info("Persisting auto-updated settings to the database...")
+		// This save is best-effort; a failure here is logged but not returned as a critical error.
 		if err := s.saveToDB(ctx, settings); err != nil {
 			slog.Error("Failed to persist auto-updated settings", "error", err)
 		}
@@ -98,7 +109,7 @@ func (s *SettingsService) Get(ctx context.Context) (*Settings, error) {
 	return settings, nil
 }
 
-// Save validates and persists settings.
+// Save validates the provided settings against available Ollama models and persists them.
 func (s *SettingsService) Save(ctx context.Context, settings *Settings) error {
 	availableModels, err := s.llm.ListModels(ctx)
 	if err != nil {
@@ -110,16 +121,18 @@ func (s *SettingsService) Save(ctx context.Context, settings *Settings) error {
 		modelNames[i] = m.Name
 	}
 
+	// Ensure the selected models actually exist locally.
 	if settings.MainModel != "" && !slices.Contains(modelNames, settings.MainModel) {
-		return fmt.Errorf("main model '%s' is not available in Ollama", settings.MainModel)
+		return fmt.Errorf("%w: main model '%s' is not available in Ollama", app_errors.ErrValidation, settings.MainModel)
 	}
 	if settings.SupportModel != "" && !slices.Contains(modelNames, settings.SupportModel) {
-		return fmt.Errorf("support model '%s' is not available in Ollama", settings.SupportModel)
+		return fmt.Errorf("%w: support model '%s' is not available in Ollama", app_errors.ErrValidation, settings.SupportModel)
 	}
 
 	return s.saveToDB(ctx, settings)
 }
 
+// getFromDB is a private helper for retrieving settings from the key-value table.
 func (s *SettingsService) getFromDB(ctx context.Context) (*Settings, error) {
 	query := "SELECT key, value FROM settings"
 	rows, err := s.db.QueryContext(ctx, query)
@@ -141,8 +154,9 @@ func (s *SettingsService) getFromDB(ctx context.Context) (*Settings, error) {
 		settingsMap[key] = value
 	}
 
+	// If the map is empty, it means the settings table has no rows.
 	if len(settingsMap) == 0 {
-		return nil, sql.ErrNoRows
+		return nil, repository.ErrNotFound
 	}
 
 	return &Settings{
@@ -152,12 +166,12 @@ func (s *SettingsService) getFromDB(ctx context.Context) (*Settings, error) {
 	}, nil
 }
 
+// saveToDB is a private helper for persisting settings using an UPSERT operation.
 func (s *SettingsService) saveToDB(ctx context.Context, settings *Settings) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-
 	defer func() {
 		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
 			slog.Error("Failed to rollback save settings transaction", "error", err)
@@ -170,6 +184,13 @@ func (s *SettingsService) saveToDB(ctx context.Context, settings *Settings) erro
 		"support_model": settings.SupportModel,
 	}
 
+	// ADD THIS BLOCK TO MAKE THE ORDER DETERMINISTIC
+	keys := make([]string, 0, len(settingsMap))
+	for k := range settingsMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	stmt, err := tx.PrepareContext(ctx, "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
 	if err != nil {
 		return err
@@ -180,8 +201,9 @@ func (s *SettingsService) saveToDB(ctx context.Context, settings *Settings) erro
 		}
 	}()
 
-	for key, value := range settingsMap {
-		if _, err := stmt.ExecContext(ctx, key, value); err != nil {
+	// ITERATE OVER SORTED KEYS
+	for _, key := range keys {
+		if _, err := stmt.ExecContext(ctx, key, settingsMap[key]); err != nil {
 			return err
 		}
 	}
@@ -189,6 +211,8 @@ func (s *SettingsService) saveToDB(ctx context.Context, settings *Settings) erro
 	return tx.Commit()
 }
 
+// findLatestModel discovers available Ollama models and returns the name of the
+// most recently modified one.
 func (s *SettingsService) findLatestModel(ctx context.Context) string {
 	models, err := s.llm.ListModels(ctx)
 	if err != nil {
@@ -200,7 +224,9 @@ func (s *SettingsService) findLatestModel(ctx context.Context) string {
 		return ""
 	}
 
+	// Sort models by modification date, descending, to find the newest one.
 	sort.Slice(models.Models, func(i, j int) bool {
+		// Parsing errors are ignored for simplicity; a zero-time will sort incorrectly but won't crash.
 		t1, _ := time.Parse(time.RFC3339, models.Models[i].ModifiedAt)
 		t2, _ := time.Parse(time.RFC3339, models.Models[j].ModifiedAt)
 		return t1.After(t2)

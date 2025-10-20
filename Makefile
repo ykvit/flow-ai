@@ -1,33 +1,42 @@
+# ==============================================================================
 # Makefile for the Flow-AI Project
-# Uses a unified Docker build stage for all development and CI tasks, ensuring consistency.
+# Provides a single, unified interface for all development and operational tasks.
+# ==============================================================================
 
+# Use bash for all shell commands to ensure consistent scripting behavior.
 SHELL := /bin/bash
+
+# Capture the host user's UID and GID to fix file permission issues when
+# Docker creates files in mounted volumes (e.g., test reports).
 HOST_UID := $(shell id -u)
 HOST_GID := $(shell id -g)
 
-# Base Docker Compose command setup
+# Define base Docker Compose files for a DRY (Don't Repeat Yourself) setup.
 COMPOSE_BASE_FILE := -f docker/compose.base.yaml
 COMPOSE_DEV_FILE  := -f docker/compose.dev.yaml
 COMPOSE_PROD_FILE := -f docker/compose.prod.yaml
 COMPOSE_TEST_FILE := -f docker/compose.test.yaml
 
-# GPU support is optional, controlled by `make <command> GPU=1`
+# Allow optional GPU support by layering an additional compose file.
+# Usage: `make dev GPU=1`
 COMPOSE_GPU :=
 ifeq ($(GPU),1)
 	COMPOSE_GPU := -f docker/compose.gpu.yaml
 endif
 
-# DRY command variables
-# We use the DEV environment for all one-off tool commands
+# Define reusable command snippets to keep targets clean and consistent.
+# One-off tool commands (lint, format, migrate) reuse the DEV environment for convenience.
 COMPOSE_DEV_CMD  := docker compose $(COMPOSE_BASE_FILE) $(COMPOSE_DEV_FILE) $(COMPOSE_GPU)
 COMPOSE_PROD_CMD := docker compose $(COMPOSE_BASE_FILE) $(COMPOSE_PROD_FILE) $(COMPOSE_GPU)
 COMPOSE_TEST_CMD := docker compose $(COMPOSE_BASE_FILE) $(COMPOSE_TEST_FILE)
 
-# Service names for clarity
+# Define service names as variables for easy reference and modification.
 BACKEND_SERVICE_NAME := flow-ai
 FRONTEND_SERVICE_NAME := frontend
 
-.PHONY: help dev prod down logs swag lint format format-check dev-gpu prod-gpu down-dev down-prod down-test test test-backend test-frontend test-ci
+# Declare all targets as .PHONY to prevent conflicts with files of the same name.
+.PHONY: help dev prod down logs swag lint format format-check dev-gpu prod-gpu down-dev down-prod down-test test test-backend test-frontend test-ci migrate-create migrate-up migrate-down tidy mocks
+# Set the default goal to 'help' so running `make` without arguments shows the help message.
 .DEFAULT_GOAL := help
 
 ##@ Main Commands
@@ -52,8 +61,10 @@ test: ##> 🧪 Run all available tests for the project (backend & frontend).
 	@echo "\nNote: Frontend tests are not yet implemented. Structure is ready."
 	# @$(MAKE) test-frontend
 
-test-backend: ##> 🧪 (Backend) Run Go integration tests.
-	@echo "--- Running Go integration tests ---"
+test-backend: mocks ##> 🧪 (Backend) Run ALL Go tests (unit & integration).
+	@echo "--- Running Go unit and integration tests ---"
+	# Pass host UID/GID to the test container to ensure reports are owned by the host user.
+	# `--abort-on-container-exit` and `--exit-code-from` ensure make fails if tests fail.
 	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) up \
 		--build \
 		--abort-on-container-exit \
@@ -74,6 +85,7 @@ prod-gpu: ##> 🚢 (GPU) Start the production environment.
 ##@ Teardown
 down-dev: ##> ⏹️ Stop and clean up the DEV environment.
 	@echo "--- Stopping DEV environment ---"
+	# `-v` removes volumes, `--remove-orphans` cleans up unused containers.
 	$(COMPOSE_DEV_CMD) down -v --remove-orphans
 
 down-prod: ##> ⏹️ Stop and clean up the PROD environment.
@@ -93,10 +105,11 @@ down: ##> ☢️ Stop and clean up ALL environments.
 ##@ CI-Specific Commands
 test-ci: ##> 🤖 (Backend) Run tests for CI (no cache).
 	@echo "--- Building test images with no cache ---"
+	# CI builds should always be clean to avoid stale cache issues.
 	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) build --no-cache $(BACKEND_SERVICE_NAME)
 	@echo "--- Running CI integration tests and capturing logs ---"
-	@# We redirect all output to test-logs.txt and also print it to the console with tee.
-	@# The exit code of the compose command is preserved.
+	# `set -o pipefail` ensures that the exit code of `docker compose` is preserved
+	# even when its output is piped to `tee`.
 	set -o pipefail; \
 	HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) $(COMPOSE_TEST_CMD) up \
 		--abort-on-container-exit \
@@ -105,6 +118,7 @@ test-ci: ##> 🤖 (Backend) Run tests for CI (no cache).
 
 format-check: ##> 🧐 Check if Go code is formatted (for CI).
 	@echo "--- Checking Go code formatting ---"
+	# This command fails if `goimports -l` produces any output, making it ideal for CI checks.
 	@if [ -n "$$($(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) goimports -l .)" ]; then \
 		echo "The following files are not formatted correctly:"; \
 		$(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) goimports -l .; \
@@ -113,11 +127,24 @@ format-check: ##> 🧐 Check if Go code is formatted (for CI).
 	@echo "All files are correctly formatted."
 
 ##@ Code Quality & Docs
+tidy: ##> ✨ Tidy Go modules (add/remove dependencies).
+	@echo "--- Tidying Go modules ---"
+	@$(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) go mod tidy
+
+mocks: tidy ##> 🧙 Generate mocks for all interfaces.
+	@echo "--- Generating mocks ---"
+	@$(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) mockery
+
 swag: ##> 📄 Regenerate Swagger/OpenAPI documentation.
 	@echo "--- Regenerating Swagger documentation ---"
-	# We run as the host user to ensure the generated files have the correct permissions.
-	@$(COMPOSE_DEV_CMD) run --rm --user $(HOST_UID):$(HOST_GID) $(BACKEND_SERVICE_NAME) \
-		swag init -g ./cmd/server/main.go --output ./docs
+	# Run as the host user to ensure generated docs have correct file permissions.
+	# We set GOCACHE=/tmp to a world-writable directory to prevent permission
+	# errors when swag tries to use the Go build cache as a non-root user.
+	@$(COMPOSE_DEV_CMD) run --rm \
+		--user $(HOST_UID):$(HOST_GID) \
+		-e GOCACHE=/tmp \
+		$(BACKEND_SERVICE_NAME) \
+		swag init -g ./cmd/server/main.go --output ./docs --parseDependency
 
 lint: ##> 🔍 Run the Go linter (golangci-lint).
 	@echo "--- Running Go linter ---"
@@ -126,3 +153,22 @@ lint: ##> 🔍 Run the Go linter (golangci-lint).
 format: ##> ✨ Automatically format all Go source code.
 	@echo "--- Formatting Go code ---"
 	@$(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) goimports -w .
+
+##@ Database Migrations
+migrate-create: ##> 📦 Create new SQL migration files. Usage: make migrate-create name=add_users_table
+	@echo "--- Creating migration files for [$(name)] ---"
+	# Run as host user so the new migration files aren't owned by root.
+	# The `name` argument is passed from the `make` command line.
+	@$(COMPOSE_DEV_CMD) run --rm --user $(HOST_UID):$(HOST_GID) $(BACKEND_SERVICE_NAME) \
+		migrate create -ext sql -dir internal/database/migrations -seq $(name)
+
+migrate-up: ##> 📈 Apply all pending database migrations.
+	@echo "--- Applying database migrations ---"
+	# The DATABASE_PATH env var is automatically picked up by the container from compose.dev.yaml.
+	@$(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) \
+		migrate -path internal/database/migrations -database "sqlite3://$(DATABASE_PATH)" up
+
+migrate-down: ##> 📉 Roll back the last database migration.
+	@echo "--- Rolling back last migration ---"
+	@$(COMPOSE_DEV_CMD) run --rm $(BACKEND_SERVICE_NAME) \
+		migrate -path internal/database/migrations -database "sqlite3://$(DATABASE_PATH)" down

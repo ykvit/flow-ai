@@ -38,14 +38,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Chat"
+                                "$ref": "#/definitions/flow-ai_backend_internal_model.Chat"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -53,12 +53,12 @@ const docTemplate = `{
         },
         "/v1/chats/messages": {
             "post": {
-                "description": "Sends a new message and initiates a real-time stream of the assistant's response.",
+                "description": "Sends a new message and initiates a real-time stream of the assistant's response.\nSends a new message and initiates a real-time stream of the assistant's response (SSE).",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
                     "Chats"
@@ -71,7 +71,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.CreateMessageRequest"
+                            "$ref": "#/definitions/flow-ai_backend_internal_service.CreateMessageRequest"
                         }
                     }
                 ],
@@ -79,13 +79,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Stream of response chunks",
                         "schema": {
-                            "$ref": "#/definitions/model.StreamResponse"
+                            "$ref": "#/definitions/flow-ai_backend_internal_model.StreamResponse"
                         }
                     },
                     "400": {
                         "description": "Sent as a stream error event",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -114,13 +114,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.FullChat"
+                            "$ref": "#/definitions/flow-ai_backend_internal_model.FullChat"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -147,13 +147,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.StatusResponse"
+                            "$ref": "#/definitions/internal_api.StatusResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -161,12 +167,12 @@ const docTemplate = `{
         },
         "/v1/chats/{chatID}/messages/{messageID}/regenerate": {
             "post": {
-                "description": "Creates a new response for a previous user prompt.",
+                "description": "Creates a new response for a previous user prompt.\nCreates a new response for a previous user prompt (SSE).",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
                     "Chats"
@@ -193,7 +199,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.RegenerateMessageRequest"
+                            "$ref": "#/definitions/flow-ai_backend_internal_service.RegenerateMessageRequest"
                         }
                     }
                 ],
@@ -201,19 +207,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Stream of new response chunks",
                         "schema": {
-                            "$ref": "#/definitions/model.StreamResponse"
+                            "$ref": "#/definitions/flow-ai_backend_internal_model.StreamResponse"
                         }
                     },
                     "400": {
                         "description": "Sent as a stream error event",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Sent as a stream error event",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -246,7 +252,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.UpdateTitleRequest"
+                            "$ref": "#/definitions/internal_api.UpdateTitleRequest"
                         }
                     }
                 ],
@@ -254,19 +260,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.StatusResponse"
+                            "$ref": "#/definitions/internal_api.StatusResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -286,13 +298,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/llm.ListModelsResponse"
+                            "$ref": "#/definitions/flow-ai_backend_internal_llm.ListModelsResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -316,7 +328,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/llm.DeleteModelRequest"
+                            "$ref": "#/definitions/flow-ai_backend_internal_llm.DeleteModelRequest"
                         }
                     }
                 ],
@@ -324,19 +336,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.StatusResponse"
+                            "$ref": "#/definitions/internal_api.StatusResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -344,12 +362,12 @@ const docTemplate = `{
         },
         "/v1/models/pull": {
             "post": {
-                "description": "Downloads a model from the Ollama registry. This is a streaming endpoint.",
+                "description": "Downloads a model from the Ollama registry. This is a streaming endpoint.\nDownloads a model from the Ollama registry. This is a streaming endpoint (SSE).",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
                     "Models"
@@ -362,7 +380,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/llm.PullModelRequest"
+                            "$ref": "#/definitions/flow-ai_backend_internal_llm.PullModelRequest"
                         }
                     }
                 ],
@@ -370,13 +388,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Stream of progress status",
                         "schema": {
-                            "$ref": "#/definitions/llm.PullStatus"
+                            "$ref": "#/definitions/flow-ai_backend_internal_llm.PullStatus"
                         }
                     },
                     "400": {
                         "description": "Sent as a stream error event",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -402,7 +420,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/llm.ShowModelRequest"
+                            "$ref": "#/definitions/flow-ai_backend_internal_llm.ShowModelRequest"
                         }
                     }
                 ],
@@ -410,19 +428,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/llm.ModelInfo"
+                            "$ref": "#/definitions/flow-ai_backend_internal_llm.ModelInfo"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -442,13 +460,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/service.Settings"
+                            "$ref": "#/definitions/flow-ai_backend_internal_service.Settings"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -472,7 +490,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.Settings"
+                            "$ref": "#/definitions/flow-ai_backend_internal_service.Settings"
                         }
                     }
                 ],
@@ -480,19 +498,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.StatusResponse"
+                            "$ref": "#/definitions/internal_api.StatusResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
                     }
                 }
@@ -500,32 +518,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "api.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.StatusResponse": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.UpdateTitleRequest": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "example": "My Custom Chat Title"
-                }
-            }
-        },
-        "llm.DeleteModelRequest": {
+        "flow-ai_backend_internal_llm.DeleteModelRequest": {
             "type": "object",
             "properties": {
                 "name": {
@@ -534,18 +527,18 @@ const docTemplate = `{
                 }
             }
         },
-        "llm.ListModelsResponse": {
+        "flow-ai_backend_internal_llm.ListModelsResponse": {
             "type": "object",
             "properties": {
                 "models": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/llm.Model"
+                        "$ref": "#/definitions/flow-ai_backend_internal_llm.Model"
                     }
                 }
             }
         },
-        "llm.Model": {
+        "flow-ai_backend_internal_llm.Model": {
             "type": "object",
             "properties": {
                 "modified_at": {
@@ -559,7 +552,7 @@ const docTemplate = `{
                 }
             }
         },
-        "llm.ModelInfo": {
+        "flow-ai_backend_internal_llm.ModelInfo": {
             "type": "object",
             "properties": {
                 "modelfile": {
@@ -573,7 +566,7 @@ const docTemplate = `{
                 }
             }
         },
-        "llm.PullModelRequest": {
+        "flow-ai_backend_internal_llm.PullModelRequest": {
             "type": "object",
             "properties": {
                 "name": {
@@ -585,7 +578,7 @@ const docTemplate = `{
                 }
             }
         },
-        "llm.PullStatus": {
+        "flow-ai_backend_internal_llm.PullStatus": {
             "type": "object",
             "properties": {
                 "completed": {
@@ -605,42 +598,36 @@ const docTemplate = `{
                 }
             }
         },
-        "llm.RequestOptions": {
+        "flow-ai_backend_internal_llm.RequestOptions": {
             "type": "object",
             "properties": {
                 "repeat_penalty": {
-                    "description": "Helps prevent the model from repeating itself. (e.g., 1.1)",
                     "type": "number",
                     "example": 1.1
                 },
                 "seed": {
-                    "description": "Use a specific seed for reproducible outputs.",
                     "type": "integer",
                     "example": 42
                 },
                 "system": {
-                    "description": "A system prompt specific to this request.",
                     "type": "string",
                     "example": "You are a senior database administrator."
                 },
                 "temperature": {
-                    "description": "Controls randomness. Higher values increase creativity. (e.g., 0.7)",
                     "type": "number",
                     "example": 0.7
                 },
                 "top_k": {
-                    "description": "Reduces the probability of generating nonsense. (e.g., 40)",
                     "type": "integer",
                     "example": 40
                 },
                 "top_p": {
-                    "description": "Works together with temperature. (e.g., 0.9)",
                     "type": "number",
                     "example": 0.9
                 }
             }
         },
-        "llm.ShowModelRequest": {
+        "flow-ai_backend_internal_llm.ShowModelRequest": {
             "type": "object",
             "properties": {
                 "name": {
@@ -649,7 +636,7 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Chat": {
+        "flow-ai_backend_internal_model.Chat": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -671,14 +658,10 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2025-09-08T14:05:00Z"
-                },
-                "user_id": {
-                    "type": "string",
-                    "example": "default-user"
                 }
             }
         },
-        "model.FullChat": {
+        "flow-ai_backend_internal_model.FullChat": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -692,7 +675,7 @@ const docTemplate = `{
                 "messages": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/model.Message"
+                        "$ref": "#/definitions/flow-ai_backend_internal_model.Message"
                     }
                 },
                 "model": {
@@ -706,14 +689,10 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2025-09-08T14:05:00Z"
-                },
-                "user_id": {
-                    "type": "string",
-                    "example": "default-user"
                 }
             }
         },
-        "model.Message": {
+        "flow-ai_backend_internal_model.Message": {
             "type": "object",
             "properties": {
                 "content": {
@@ -745,7 +724,7 @@ const docTemplate = `{
                 }
             }
         },
-        "model.StreamResponse": {
+        "flow-ai_backend_internal_model.StreamResponse": {
             "type": "object",
             "properties": {
                 "content": {
@@ -764,85 +743,109 @@ const docTemplate = `{
                 }
             }
         },
-        "service.CreateMessageRequest": {
+        "flow-ai_backend_internal_service.CreateMessageRequest": {
             "type": "object",
+            "required": [
+                "content"
+            ],
             "properties": {
                 "chat_id": {
-                    "description": "The ID of an existing chat. If omitted, a new chat will be created.",
                     "type": "string",
                     "example": "4b3b5a34-571f-47e3-abd1-a7dbee9d92fe"
                 },
                 "content": {
-                    "description": "The content of the user's message.",
                     "type": "string",
+                    "minLength": 1,
                     "example": "What is the difference between SQL and NoSQL databases?"
                 },
                 "model": {
-                    "description": "The model to use for this specific message. Overrides the global setting.",
                     "type": "string",
                     "example": "qwen3:8b"
                 },
                 "options": {
-                    "description": "Additional generation options for this request.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/llm.RequestOptions"
-                        }
-                    ]
+                    "$ref": "#/definitions/flow-ai_backend_internal_llm.RequestOptions"
                 },
                 "support_model": {
-                    "description": "A support model for this specific message. Overrides the global setting.",
                     "type": "string"
                 },
                 "system_prompt": {
-                    "description": "A system prompt for this specific message. Overrides the global setting.",
                     "type": "string"
                 }
             }
         },
-        "service.RegenerateMessageRequest": {
+        "flow-ai_backend_internal_service.RegenerateMessageRequest": {
             "type": "object",
             "properties": {
                 "chat_id": {
-                    "description": "Included for context",
+                    "description": "Included for client-side context.",
                     "type": "string"
                 },
                 "model": {
-                    "description": "The model to use for the regenerated response. Overrides the global setting.",
                     "type": "string",
                     "example": "mistral:7b"
                 },
                 "options": {
-                    "description": "New generation options. For example, use a higher temperature for a more creative answer.",
+                    "description": "Allows overriding generation parameters, e.g., for a more creative response.",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/llm.RequestOptions"
+                            "$ref": "#/definitions/flow-ai_backend_internal_llm.RequestOptions"
                         }
                     ]
                 },
                 "system_prompt": {
-                    "description": "A system prompt for the regenerated response. Overrides the global setting.",
                     "type": "string"
                 }
             }
         },
-        "service.Settings": {
+        "flow-ai_backend_internal_service.Settings": {
             "type": "object",
+            "required": [
+                "main_model"
+            ],
             "properties": {
                 "main_model": {
-                    "description": "The primary model for new chats. Must be available locally.",
+                    "description": "The primary model for new chats. Must be an available local model.",
                     "type": "string",
                     "example": "qwen3:8b"
                 },
                 "support_model": {
-                    "description": "A model used for background tasks, like generating chat titles.",
+                    "description": "A model for background tasks like title generation. Can be the same as the main model.",
                     "type": "string",
                     "example": "gemma3:4b"
                 },
                 "system_prompt": {
-                    "description": "A global instruction for the model's behavior.",
                     "type": "string",
                     "example": "You are a helpful assistant that always answers in Markdown format."
+                }
+            }
+        },
+        "internal_api.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.StatusResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.UpdateTitleRequest": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "example": "My Custom Chat Title"
                 }
             }
         }

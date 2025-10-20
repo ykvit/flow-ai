@@ -14,7 +14,7 @@ type Repository interface {
 
 	CreateChat(ctx context.Context, chat *model.Chat) error
 	GetChat(ctx context.Context, chatID string) (*model.Chat, error)
-	GetChats(ctx context.Context, userID string) ([]*model.Chat, error)
+	GetChats(ctx context.Context) ([]*model.Chat, error)
 	UpdateChatTitle(ctx context.Context, chatID, newTitle string) error
 	DeleteChat(ctx context.Context, chatID string) error
 

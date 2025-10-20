@@ -1,35 +1,19 @@
 basePath: /api
 definitions:
-  api.ErrorResponse:
-    properties:
-      error:
-        type: string
-    type: object
-  api.StatusResponse:
-    properties:
-      status:
-        type: string
-    type: object
-  api.UpdateTitleRequest:
-    properties:
-      title:
-        example: My Custom Chat Title
-        type: string
-    type: object
-  llm.DeleteModelRequest:
+  flow-ai_backend_internal_llm.DeleteModelRequest:
     properties:
       name:
         example: mistral:7b
         type: string
     type: object
-  llm.ListModelsResponse:
+  flow-ai_backend_internal_llm.ListModelsResponse:
     properties:
       models:
         items:
-          $ref: '#/definitions/llm.Model'
+          $ref: '#/definitions/flow-ai_backend_internal_llm.Model'
         type: array
     type: object
-  llm.Model:
+  flow-ai_backend_internal_llm.Model:
     properties:
       modified_at:
         type: string
@@ -38,7 +22,7 @@ definitions:
       size:
         type: integer
     type: object
-  llm.ModelInfo:
+  flow-ai_backend_internal_llm.ModelInfo:
     properties:
       modelfile:
         type: string
@@ -47,7 +31,7 @@ definitions:
       template:
         type: string
     type: object
-  llm.PullModelRequest:
+  flow-ai_backend_internal_llm.PullModelRequest:
     properties:
       name:
         example: mistral:7b
@@ -55,7 +39,7 @@ definitions:
       stream:
         type: boolean
     type: object
-  llm.PullStatus:
+  flow-ai_backend_internal_llm.PullStatus:
     properties:
       completed:
         type: integer
@@ -68,41 +52,34 @@ definitions:
       total:
         type: integer
     type: object
-  llm.RequestOptions:
+  flow-ai_backend_internal_llm.RequestOptions:
     properties:
       repeat_penalty:
-        description: Helps prevent the model from repeating itself. (e.g., 1.1)
         example: 1.1
         type: number
       seed:
-        description: Use a specific seed for reproducible outputs.
         example: 42
         type: integer
       system:
-        description: A system prompt specific to this request.
         example: You are a senior database administrator.
         type: string
       temperature:
-        description: Controls randomness. Higher values increase creativity. (e.g.,
-          0.7)
         example: 0.7
         type: number
       top_k:
-        description: Reduces the probability of generating nonsense. (e.g., 40)
         example: 40
         type: integer
       top_p:
-        description: Works together with temperature. (e.g., 0.9)
         example: 0.9
         type: number
     type: object
-  llm.ShowModelRequest:
+  flow-ai_backend_internal_llm.ShowModelRequest:
     properties:
       name:
         example: qwen3:8b
         type: string
     type: object
-  model.Chat:
+  flow-ai_backend_internal_model.Chat:
     properties:
       created_at:
         example: "2025-09-08T14:00:00Z"
@@ -119,11 +96,8 @@ definitions:
       updated_at:
         example: "2025-09-08T14:05:00Z"
         type: string
-      user_id:
-        example: default-user
-        type: string
     type: object
-  model.FullChat:
+  flow-ai_backend_internal_model.FullChat:
     properties:
       created_at:
         example: "2025-09-08T14:00:00Z"
@@ -133,7 +107,7 @@ definitions:
         type: string
       messages:
         items:
-          $ref: '#/definitions/model.Message'
+          $ref: '#/definitions/flow-ai_backend_internal_model.Message'
         type: array
       model:
         example: qwen:0.5b
@@ -144,11 +118,8 @@ definitions:
       updated_at:
         example: "2025-09-08T14:05:00Z"
         type: string
-      user_id:
-        example: default-user
-        type: string
     type: object
-  model.Message:
+  flow-ai_backend_internal_model.Message:
     properties:
       content:
         example: The Roman Empire fell in 476 AD.
@@ -171,7 +142,7 @@ definitions:
         example: "2025-09-08T14:05:00Z"
         type: string
     type: object
-  model.StreamResponse:
+  flow-ai_backend_internal_model.StreamResponse:
     properties:
       content:
         example: Hello
@@ -184,68 +155,79 @@ definitions:
       error:
         type: string
     type: object
-  service.CreateMessageRequest:
+  flow-ai_backend_internal_service.CreateMessageRequest:
     properties:
       chat_id:
-        description: The ID of an existing chat. If omitted, a new chat will be created.
         example: 4b3b5a34-571f-47e3-abd1-a7dbee9d92fe
         type: string
       content:
-        description: The content of the user's message.
         example: What is the difference between SQL and NoSQL databases?
+        minLength: 1
         type: string
       model:
-        description: The model to use for this specific message. Overrides the global
-          setting.
         example: qwen3:8b
         type: string
       options:
-        allOf:
-        - $ref: '#/definitions/llm.RequestOptions'
-        description: Additional generation options for this request.
+        $ref: '#/definitions/flow-ai_backend_internal_llm.RequestOptions'
       support_model:
-        description: A support model for this specific message. Overrides the global
-          setting.
         type: string
       system_prompt:
-        description: A system prompt for this specific message. Overrides the global
-          setting.
         type: string
+    required:
+    - content
     type: object
-  service.RegenerateMessageRequest:
+  flow-ai_backend_internal_service.RegenerateMessageRequest:
     properties:
       chat_id:
-        description: Included for context
+        description: Included for client-side context.
         type: string
       model:
-        description: The model to use for the regenerated response. Overrides the
-          global setting.
         example: mistral:7b
         type: string
       options:
         allOf:
-        - $ref: '#/definitions/llm.RequestOptions'
-        description: New generation options. For example, use a higher temperature
-          for a more creative answer.
+        - $ref: '#/definitions/flow-ai_backend_internal_llm.RequestOptions'
+        description: Allows overriding generation parameters, e.g., for a more creative
+          response.
       system_prompt:
-        description: A system prompt for the regenerated response. Overrides the global
-          setting.
         type: string
     type: object
-  service.Settings:
+  flow-ai_backend_internal_service.Settings:
     properties:
       main_model:
-        description: The primary model for new chats. Must be available locally.
+        description: The primary model for new chats. Must be an available local model.
         example: qwen3:8b
         type: string
       support_model:
-        description: A model used for background tasks, like generating chat titles.
+        description: A model for background tasks like title generation. Can be the
+          same as the main model.
         example: gemma3:4b
         type: string
       system_prompt:
-        description: A global instruction for the model's behavior.
         example: You are a helpful assistant that always answers in Markdown format.
         type: string
+    required:
+    - main_model
+    type: object
+  internal_api.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  internal_api.StatusResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  internal_api.UpdateTitleRequest:
+    properties:
+      title:
+        example: My Custom Chat Title
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - title
     type: object
 info:
   contact:
@@ -269,12 +251,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.Chat'
+              $ref: '#/definitions/flow-ai_backend_internal_model.Chat'
             type: array
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: List all chats
       tags:
       - Chats
@@ -293,11 +275,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.StatusResponse'
+            $ref: '#/definitions/internal_api.StatusResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Delete a chat
       tags:
       - Chats
@@ -315,11 +301,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/model.FullChat'
+            $ref: '#/definitions/flow-ai_backend_internal_model.FullChat'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Get a single chat
       tags:
       - Chats
@@ -327,7 +313,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a new response for a previous user prompt.
+      description: |-
+        Creates a new response for a previous user prompt.
+        Creates a new response for a previous user prompt (SSE).
       parameters:
       - description: Chat ID
         in: path
@@ -344,22 +332,22 @@ paths:
         name: regenRequest
         required: true
         schema:
-          $ref: '#/definitions/service.RegenerateMessageRequest'
+          $ref: '#/definitions/flow-ai_backend_internal_service.RegenerateMessageRequest'
       produces:
-      - text/event-stream
+      - application/json
       responses:
         "200":
           description: Stream of new response chunks
           schema:
-            $ref: '#/definitions/model.StreamResponse'
+            $ref: '#/definitions/flow-ai_backend_internal_model.StreamResponse'
         "400":
           description: Sent as a stream error event
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
         "404":
           description: Sent as a stream error event
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Regenerate a message
       tags:
       - Chats
@@ -379,22 +367,26 @@ paths:
         name: title
         required: true
         schema:
-          $ref: '#/definitions/api.UpdateTitleRequest'
+          $ref: '#/definitions/internal_api.UpdateTitleRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.StatusResponse'
+            $ref: '#/definitions/internal_api.StatusResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Update a chat's title
       tags:
       - Chats
@@ -402,26 +394,27 @@ paths:
     post:
       consumes:
       - application/json
-      description: Sends a new message and initiates a real-time stream of the assistant's
-        response.
+      description: |-
+        Sends a new message and initiates a real-time stream of the assistant's response.
+        Sends a new message and initiates a real-time stream of the assistant's response (SSE).
       parameters:
       - description: Message Request
         in: body
         name: message
         required: true
         schema:
-          $ref: '#/definitions/service.CreateMessageRequest'
+          $ref: '#/definitions/flow-ai_backend_internal_service.CreateMessageRequest'
       produces:
-      - text/event-stream
+      - application/json
       responses:
         "200":
           description: Stream of response chunks
           schema:
-            $ref: '#/definitions/model.StreamResponse'
+            $ref: '#/definitions/flow-ai_backend_internal_model.StreamResponse'
         "400":
           description: Sent as a stream error event
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Create a message and stream the response
       tags:
       - Chats
@@ -436,22 +429,26 @@ paths:
         name: modelRequest
         required: true
         schema:
-          $ref: '#/definitions/llm.DeleteModelRequest'
+          $ref: '#/definitions/flow-ai_backend_internal_llm.DeleteModelRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.StatusResponse'
+            $ref: '#/definitions/internal_api.StatusResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Delete a local model
       tags:
       - Models
@@ -463,11 +460,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/llm.ListModelsResponse'
+            $ref: '#/definitions/flow-ai_backend_internal_llm.ListModelsResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: List local models
       tags:
       - Models
@@ -475,26 +472,27 @@ paths:
     post:
       consumes:
       - application/json
-      description: Downloads a model from the Ollama registry. This is a streaming
-        endpoint.
+      description: |-
+        Downloads a model from the Ollama registry. This is a streaming endpoint.
+        Downloads a model from the Ollama registry. This is a streaming endpoint (SSE).
       parameters:
       - description: Model Name to Pull
         in: body
         name: modelRequest
         required: true
         schema:
-          $ref: '#/definitions/llm.PullModelRequest'
+          $ref: '#/definitions/flow-ai_backend_internal_llm.PullModelRequest'
       produces:
-      - text/event-stream
+      - application/json
       responses:
         "200":
           description: Stream of progress status
           schema:
-            $ref: '#/definitions/llm.PullStatus'
+            $ref: '#/definitions/flow-ai_backend_internal_llm.PullStatus'
         "400":
           description: Sent as a stream error event
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Pull a new model
       tags:
       - Models
@@ -509,22 +507,22 @@ paths:
         name: modelRequest
         required: true
         schema:
-          $ref: '#/definitions/llm.ShowModelRequest'
+          $ref: '#/definitions/flow-ai_backend_internal_llm.ShowModelRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/llm.ModelInfo'
+            $ref: '#/definitions/flow-ai_backend_internal_llm.ModelInfo'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Show model info
       tags:
       - Models
@@ -537,11 +535,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/service.Settings'
+            $ref: '#/definitions/flow-ai_backend_internal_service.Settings'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Get application settings
       tags:
       - Settings
@@ -555,22 +553,22 @@ paths:
         name: settings
         required: true
         schema:
-          $ref: '#/definitions/service.Settings'
+          $ref: '#/definitions/flow-ai_backend_internal_service.Settings'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.StatusResponse'
+            $ref: '#/definitions/internal_api.StatusResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Update application settings
       tags:
       - Settings
