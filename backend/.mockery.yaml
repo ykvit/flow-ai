@@ -1,13 +1,40 @@
+# ==============================================================================
+# Mockery Configuration (v3+)
+#
+# This file configures `vektra/mockery` to automatically generate mock objects
+# from our Go interfaces. Mocks are essential for unit testing, as they allow
+# us to isolate the component we are testing from its external dependencies
+# (like databases, external APIs, etc.).
+# ==============================================================================
+
+# `build-tags` adds the specified build constraint to the top of every generated
+# mock file (e.g., `//go:build test`).
+
 build-tags: "test"
 
+# The `packages` section defines which Go packages mockery should scan for
+# interfaces. We explicitly list each package that contains interfaces we want
+# to mock. This is more precise than a global scan and prevents mockery from
+# generating unnecessary mocks for third-party library interfaces.
 packages:
+  # Mock the `Repository` interface defined in the repository package.
+  # This mock allows us to simulate database interactions (e.g., returning
+  # specific data or errors) when testing our service layer.
   flow-ai/backend/internal/repository:
     config:
-      all: true
+      all: true # Generate mocks for all interfaces found in this package.
+      # `dir`: Specifies where to place the generated mock files.
+      # `{{.InterfaceDir}}` is a template variable for the directory of the source interface.
+      # This configuration places mocks in a `mocks` subdirectory (e.g., `internal/repository/mocks/`).
       dir: "{{.InterfaceDir}}/mocks"
+      # `filename`: Sets the naming convention for the generated file.
       filename: "mock_{{.InterfaceName}}.go"
+      # `pkgname`: The Go package name for the generated mocks.
       pkgname: "mocks"
 
+  # Mock the `LLMProvider` interface.
+  # This allows us to simulate responses from the Ollama API, enabling tests
+  # for logic that handles LLM interactions without making real network calls.
   flow-ai/backend/internal/llm:
     config:
       all: true
@@ -15,6 +42,12 @@ packages:
       filename: "mock_{{.InterfaceName}}.go"
       pkgname: "mocks"
 
+  # Mock our core service interfaces (`ChatService`, `ModelService`, etc.).
+  #
+  # WHY: This is key for testing our API layer (handlers). By mocking the service
+  # layer, we can test that our HTTP handlers correctly parse requests, call the
+  # right service methods, and format responses, without executing any actual
+  # business logic. This adheres to the Dependency Inversion Principle.
   flow-ai/backend/internal/interfaces:
     config:
       all: true

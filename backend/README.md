@@ -9,16 +9,17 @@ For a high-level overview of the project's architecture, please see the main [Ar
 The backend follows the principles of Clean Architecture to ensure a clear separation of concerns.
 
 -   **/cmd/server**: The main entry point of the application.
--   **/internal/app**: The core application logic, responsible for initializing and wiring all components together.
--   **/internal/api**: Contains HTTP handlers, routing (`go-chi`), input validation, and API response models.
--   **/internal/service**: Holds the core business logic.
+-   **/internal/app**: The core application logic, responsible for initializing and wiring all components together. **This package is now fully unit-testable.**
+-   **/internal/api**: Contains HTTP handlers, routing (`go-chi`), input validation, and API response models. **Unit tests for handlers are co-located here.**
+-   **/internal/service**: Holds the core business logic. **Unit tests for services are co-located here.**
+-   **/internal/interfaces**: Defines Go interfaces for our core services, enabling dependency inversion and mocking for tests.
 -   **/internal/repository**: Manages all data persistence via a `Repository` interface, with a concrete implementation for **SQLite**.
 -   **/internal/database**: Contains logic for initializing the SQLite connection and running **schema migrations**.
 -   **/internal/errors**: Defines **custom sentinel errors** used across the service layer.
 -   **/internal/llm**: Abstracts communication with Ollama via an `LLMProvider` interface.
 -   **/internal/model**: Defines the core data structures (`Chat`, `Message`).
 -   **/internal/config**: Handles loading of bootstrap configuration using **Viper** from a `.env` file and environment variables.
--   **/tests**: Contains integration tests for the API.
+-   **/tests**: Contains **end-to-end integration tests** for the API, which run against a real database and LLM service.
 
 ## Core Features & Logic
 
@@ -53,6 +54,10 @@ We use a suite of tools to maintain high code quality and streamline development
     ```sh
     make lint
     ```
+-   **To automatically generate mock objects for interfaces:**
+    ```sh
+    make mocks
+    ```
 -   **To manage database migrations:**
     ```sh
     # Create new migration files
@@ -64,14 +69,17 @@ We use a suite of tools to maintain high code quality and streamline development
 
 ## Testing
 
-The project contains a suite of integration tests that run inside a fully containerized, isolated environment.
+The project contains a comprehensive, multi-layered test suite to ensure code quality and prevent regressions.
 
-To run all backend tests and generate an HTML coverage report, run the following command from the **project root**:
+-   **Unit Tests**: Located alongside the code they test (e.g., `chat_service_test.go`), these tests verify all business logic in complete isolation. They use mock objects (`mockery`, `sqlmock`) to simulate dependencies, making them extremely fast and reliable.
+-   **Integration Tests**: Located in the `/tests` directory, these tests verify the end-to-end "happy path" functionality of the API by running the application against a real, containerized database and Ollama instance.
+
+To run all backend tests (unit and integration) and generate an HTML coverage report, run the following command from the **project root**:
 
 ```sh
 make test-backend
 ```
-The report will be available at `coverage/coverage.html`.
+The report will be available at `coverage/coverage.html`. This command automatically regenerates mocks and tidies Go modules.
 
 ## Running Locally (Without Docker)
 

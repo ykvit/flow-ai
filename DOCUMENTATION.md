@@ -6,17 +6,18 @@ This document outlines the architecture of the Flow-AI backend, explaining key d
 
 The backend is built on the principles of **Clean Architecture**. This means the code is organized into distinct layers, each with a specific responsibility. The primary benefit is a clear separation of concerns, which makes the system maintainable, testable, and scalable.
 
-**The core rule is the Dependency Rule:** source code dependencies can only point inwards. The database knows nothing about the services, and the services know nothing about the API layer.
+**The core rule is the Dependency Rule:** source code dependencies can only point inwards. The database knows nothing about the services, and the services know nothing about the API layer. This is achieved through the use of **interfaces**, which act as boundaries between layers.
 
 ## 2. Layers of the Application
 
--   **/cmd/server**: The application's entry point. Its only job is to initialize all components ("wiring") and start the HTTP server.
--   **/internal/app**: Contains the core application startup logic. This separation from `/cmd/server` allows the main application to be imported and run inside integration tests.
--   **/internal/api**: The Presentation Layer (API). It handles HTTP requests, routing, and responses using `go-chi`. It uses versioned routes (e.g., `/api/v1`) and handlers are annotated with `swaggo` comments to auto-generate documentation.
--   **/internal/service**: The Business Logic Layer. This is the heart of the application, orchestrating data flow and containing all business rules.
+-   **/cmd/server**: The application's entry point. Its only job is to load the configuration and call `app.Run()`.
+-   **/internal/app**: Contains the core application startup and dependency injection logic. The `NewApp` function wires all components together, making the application's structure explicit and testable.
+-   **/internal/api**: The Presentation Layer (API). It handles HTTP requests, routing (`go-chi`), and responses. It depends on the service interfaces, not concrete implementations.
+-   **/internal/service**: The Business Logic Layer. This is the heart of the application, containing all business rules and orchestrating data flow between repositories and external services.
+-   **/internal/interfaces**: **Defines the contracts (Go interfaces) for our core services.** This is the key to decoupling the API layer from the service layer, enabling isolated unit testing.
 -   **/internal/repository**: The Data Access Layer. It implements an interface for all database interactions with SQLite, abstracting the data source from the business logic.
 -   **/internal/database**: A utility package for initializing the database connection and **running schema migrations using `golang-migrate`**.
--   **/internal/config**: A package responsible for loading all **bootstrap configuration** using Viper. It provides a single, unified source of truth for settings needed at startup.
+-   **/internal/config**: A package responsible for loading all **bootstrap configuration** using Viper.
 -   **/internal/errors**: **Defines a centralized set of custom sentinel errors (e.g., `ErrNotFound`), decoupling business logic from the transport layer.**
 -   **/internal/llm**: The External Services Layer, abstracting all communication with the Ollama API.
 -   **/internal/model**: The Domain Layer, defining the core data structures (`Chat`, `Message`).
@@ -28,38 +29,50 @@ When the server is running, the interactive Swagger UI is accessible at `http://
 ## 3. Key Design Decisions
 
 ### Unified Configuration with Viper
--   **Decision:** All bootstrap configuration (e.g., database path, Ollama URL) is managed by the **Viper** library. It reads settings from a `.env` file and environment variables, with environment variables having higher priority.
--   **Rationale:** This provides a **single source of truth** for configuration, eliminating conflicts between different sources like JSON files and environment variables. It adheres to the [12-Factor App methodology](https://12factor.net/config) by strictly separating config from code and making the application highly portable across environments (local, Docker, CI/CD).
+-   **Decision:** All bootstrap configuration is managed by the **Viper** library.
+-   **Rationale:** This provides a **single source of truth** for configuration, adhering to the [12-Factor App methodology](https://12factor.net/config) by strictly separating config from code.
 
 ### Tree-like Message Structure
 -   **Decision:** The `messages` table uses `parent_id` and `is_active` columns.
--   **Rationale:** This is the foundational decision that enables advanced features. It allows conversations to be stored as a tree, where each regeneration creates a new branch. The `is_active` flag points to the currently visible timeline for the user.
+-   **Rationale:** This enables advanced features like conversation branching and regeneration by storing conversations as a tree. The `is_active` flag points to the currently visible timeline.
 
 ### Database: SQLite in WAL Mode
 -   **Decision:** We use SQLite running in **WAL (Write-Ahead Logging) mode**.
--   **Rationale:** Simplicity of deployment (a single file), relational power for features like conversation branching, and excellent concurrent performance thanks to WAL mode, making it suitable for a web application of this scale.
+-   **Rationale:** Simplicity of deployment, relational power, and excellent concurrent performance suitable for a web application of this scale.
 
 ### Version-Controlled Database Migrations
 -   **Decision:** We use `golang-migrate/migrate` to manage all database schema changes. The application automatically applies pending migrations on startup.
--   **Rationale:** This makes schema evolution **explicit, version-controlled, and automated**. Instead of relying on `CREATE TABLE IF NOT EXISTS` in the code, we have a clear, step-by-step history of all changes stored in `.sql` files. This is critical for collaborative development, reliable testing, and predictable deployments.
+-   **Rationale:** This makes schema evolution **explicit, version-controlled, and automated**, which is critical for collaborative development and reliable deployments.
 
 ### Dynamic & Self-Healing Model Configuration
--   **Decision:** The application does not rely on hardcoded model names in its configuration.
--   **Rationale:** On first launch, the backend discovers available Ollama models, selects the most recent one as a default, and saves this configuration **to the database**. If the app starts with no models available, it will later "self-heal" its configuration once a model is pulled via the API.
+-   **Decision:** The application does not rely on hardcoded model names. On first launch, it discovers available Ollama models and saves a default configuration **to the database**.
+-   **Rationale:** This makes the application resilient and self-configuring. It can adapt to the user's environment without requiring manual configuration changes.
 
 ### Robust Startup Sequence
 -   **Decision:** The backend actively waits for the Ollama service to be ready before initializing its services.
--   **Rationale:** This makes the application resilient to the unpredictable startup order in containerized environments like Docker Compose, preventing race conditions.
+-   **Rationale:** This prevents race conditions and makes the application resilient to the unpredictable startup order in containerized environments.
 
-### Auto-Generated API Documentation
--   **Decision:** Use `swaggo/swag` to generate OpenAPI (Swagger) documentation directly from code comments.
--   **Rationale:** This ensures the documentation is always synchronized with the code, provides an interactive UI for API testing, and serves as a single source of truth for the API contract.
+## 4. Testing & Quality Assurance
 
-## 4. DevOps and Quality Assurance
+We employ a multi-layered testing strategy to ensure high code quality, prevent regressions, and provide fast feedback to developers. This approach is often visualized as a "Testing Pyramid."
 
-We adhere to modern DevOps practices to ensure code quality and reliability.
+-   **Level 1: Unit Tests (Fast & Focused)**
+    -   **Location:** Co-located with the source code (e.g., `chat_service_test.go`).
+    -   **Purpose:** To test a single function or component (a "unit") in complete isolation. All external dependencies (database, LLM, other services) are replaced with **mocks**.
+    -   **Tools:** We use Go's standard `testing` package, `stretchr/testify` for assertions, `vektra/mockery` for auto-generating mocks from interfaces, and `DATA-DOG/go-sqlmock` for mocking direct database interactions.
+    -   **Benefits:** These tests are extremely fast (running in milliseconds), reliable, and allow us to test every possible code path, including all error conditions (`if err != nil`). They form the largest part of our test suite and provide the quickest feedback during development.
 
--   **Automation with Makefile:** All development, testing, and deployment tasks are automated via a `Makefile`. This provides a simple and consistent interface for all developers and CI/CD pipelines.
--   **Reproducible Builds:** We use multi-stage Docker builds and **pin the exact versions** of all tools (Go, `goimports`, `golangci-lint`, `swag`) in the `Dockerfile`. This guarantees that builds are identical and predictable, regardless of where or when they are run.
--   **Shift-Left Quality:** Code linting (`make lint`) and formatting (`make format`) are integral parts of the development workflow, catching issues early and maintaining a consistent code style.
--   **Isolated & Hermetic Integration Testing:** Our test suite (`make test-backend`) runs in a completely isolated Docker environment. It uses its own ephemeral database and Ollama instance, and **programmatically sets its own configuration**. This ensures tests are reliable, repeatable, and do not depend on external files or affect development data.
+-   **Level 2: Integration Tests (Broad & Realistic)**
+    -   **Location:** `/tests` directory.
+    -   **Purpose:** To verify that different components of the system work together correctly. Our integration tests run a full, in-process instance of the application against a real (but temporary) SQLite database and a real (but containerized) Ollama instance.
+    -   **Scope:** These tests focus on the "happy path" of our main API endpoints, ensuring that a request can flow successfully through the API, service, and repository layers.
+    -   **Benefits:** They provide high confidence that the major workflows of the application are functional. They catch issues related to database queries, component wiring, and HTTP request/response handling that unit tests cannot.
+
+All tests are executed with a single command, `make test-backend`, and are fully integrated into our CI/CD pipeline.
+
+## 5. DevOps Culture
+
+-   **Automation with Makefile:** All development, testing, and operational tasks are automated via a `Makefile`, providing a simple and consistent interface for developers and CI/CD pipelines.
+-   **Reproducible Builds:** We use multi-stage Docker builds and **pin the exact versions** of all tools (Go, linters, etc.) in the `Dockerfile`. This guarantees that builds are identical and predictable.
+-   **Shift-Left Quality:** Code linting (`make lint`) and formatting (`make format`) are integral parts of the workflow, catching issues early.
+-   **Isolated Test Environment:** The test suite (`make test-backend`) runs in a completely isolated Docker environment with its own ephemeral database, ensuring tests are reliable and do not affect development data.
