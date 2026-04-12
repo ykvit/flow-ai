@@ -39,7 +39,8 @@ RUN chown -R appuser:appgroup /src
 FROM alpine:3.22 AS final
 WORKDIR /app
 # Install only necessary runtime dependencies: nginx for proxying and ca-certificates for TLS.
-RUN apk add --no-cache nginx ca-certificates
+RUN apk update && apk upgrade --no-cache && \
+    apk add --no-cache nginx ca-certificates
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Copy only the essential compiled artifacts from previous stages.
