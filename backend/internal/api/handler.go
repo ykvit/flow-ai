@@ -206,15 +206,18 @@ func (h *ChatHandler) HandleRegenerateMessage(w http.ResponseWriter, r *http.Req
 
 	for chunk := range streamChan {
 		if r.Context().Err() != nil {
+			// #nosec G706 -- slog provides structured logging which automatically escapes control characters.
 			slog.Info("Client disconnected during regeneration.", "chatID", chatID)
 			break
 		}
 		if err := writeStreamEvent(w, chunk); err != nil {
+			// #nosec G706 -- slog provides structured logging which automatically escapes control characters.
 			slog.Warn("Could not write to regeneration stream, client likely disconnected.", "error", err, "chatID", chatID)
 			break
 		}
 	}
 
+	// #nosec G706 -- slog provides structured logging which automatically escapes control characters.
 	slog.Debug("Finished streaming regenerated response.", "chatID", chatID)
 }
 

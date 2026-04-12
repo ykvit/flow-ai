@@ -267,6 +267,8 @@ func (s *ChatService) HandleNewMessage(
 
 	// If it was a new chat, spawn a background task to generate a better title.
 	if isNewChat {
+		// #nosec G118 -- This is an intentional background task that should not be tied to the request's context.
+		// If the user disconnects, we still want the title generation to complete.
 		go s.generateTitle(context.Background(), chatID, supportModelToUse, userMessage.Content, assistantMessage.Content)
 	}
 }

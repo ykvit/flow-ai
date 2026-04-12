@@ -61,6 +61,8 @@ func respondWithError(w http.ResponseWriter, err error) {
 
 	// The original, more detailed error is logged for debugging purposes,
 	// while a generic message is sent to the client.
+	// #nosec G706 -- slog provides structured logging which automatically escapes control characters in strings,
+	// preventing log injection vulnerabilities.
 	slog.Warn("Responding with error", "status_code", statusCode, "client_message", message, "internal_error", err)
 
 	respondWithJSON(w, statusCode, ErrorResponse{Error: message})
