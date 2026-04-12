@@ -61,6 +61,7 @@ jobs:
           version: v2.5.0
           working-directory: backend
           args: --verbose ./...
+          install-mode: goinstall
 
       - name: Run Go vulnerability scanner (gosec)
         working-directory: backend
