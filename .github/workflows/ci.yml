@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: ['1.24.7', 'stable']
+        go-version: ['1.25.0', 'stable']
         
     steps:
       - name: Checkout repository
@@ -61,6 +61,7 @@ jobs:
           version: v2.5.0
           working-directory: backend
           args: --verbose ./...
+          install-mode: goinstall
 
       - name: Run Go vulnerability scanner (gosec)
         working-directory: backend
@@ -108,7 +109,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: ['1.24.7', 'stable']
+        go-version: ['1.25.0', 'stable']
     
     steps:
       - name: Checkout repository

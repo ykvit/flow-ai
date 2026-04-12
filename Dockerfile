@@ -1,7 +1,3 @@
-# =================================================================
-# Stage 1: Frontend Builder
-# Builds the static frontend assets.
-# =================================================================
 FROM node:20-alpine AS builder-frontend
 WORKDIR /app
 # Copy package files first to leverage Docker layer caching for dependencies.
@@ -10,12 +6,7 @@ RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
-# =================================================================
-# Stage 2: Backend Builder & Developer's Toolbox
-# A comprehensive environment for building, testing, and developing the Go backend.
-# =================================================================
-# Using a Debian-based image (bookworm) for robust CGo support, specifically for go-sqlite3.
-FROM golang:1.24.8-bookworm AS builder-backend
+FROM golang:1.25-bookworm AS builder-backend
 WORKDIR /src
 
 # Install essential build tools. build-essential provides gcc for CGo.
@@ -44,10 +35,7 @@ RUN go build -ldflags="-w -s" -o ./server ./cmd/server
 # Ensure the non-root user owns the source and compiled binary.
 RUN chown -R appuser:appgroup /src
 
-# =================================================================
-# Stage 3: Final Production Image
-# A minimal, secure image for production deployment.
-# =================================================================
+
 FROM alpine:3.22 AS final
 WORKDIR /app
 # Install only necessary runtime dependencies: nginx for proxying and ca-certificates for TLS.
