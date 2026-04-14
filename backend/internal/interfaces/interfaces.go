@@ -40,6 +40,8 @@ type ChatService interface {
 	// sending results back through the channel.
 	HandleNewMessage(ctx context.Context, req *service.CreateMessageRequest, streamChan chan<- model.StreamResponse)
 	RegenerateMessage(ctx context.Context, chatID string, originalAssistantMessageID string, req *service.RegenerateMessageRequest, streamChan chan<- model.StreamResponse)
+	SwitchBranch(ctx context.Context, chatID string, targetMessageID string) error
+	GetChatTree(ctx context.Context, chatID string) (*model.FullChat, error)
 }
 
 // ModelService defines the contract for all business logic related to managing

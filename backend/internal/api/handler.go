@@ -273,3 +273,44 @@ func (h *ChatHandler) HandleDeleteChat(w http.ResponseWriter, r *http.Request) {
 	}
 	respondWithJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
 }
+
+// GetChatTree godoc
+// @Summary      Get full chat tree
+// @Description  Retrieves all messages for a chat, including inactive branches.
+// @Tags         Chats
+// @Produce      json
+// @Param        chatID  path      string  true  "Chat ID"
+// @Success      200     {object}  model.FullChat
+// @Failure      404     {object}  ErrorResponse
+// @Router       /v1/chats/{chatID}/tree [get]
+func (h *ChatHandler) GetChatTree(w http.ResponseWriter, r *http.Request) {
+	chatID := chi.URLParam(r, "chatID")
+	fullChat, err := h.chatService.GetChatTree(r.Context(), chatID)
+	if err != nil {
+		respondWithError(w, err)
+		return
+	}
+	respondWithJSON(w, http.StatusOK, fullChat)
+}
+
+// HandleSwitchBranch godoc
+// @Summary      Switch active branch
+// @Description  Sets a specific message and its branch as the active one.
+// @Tags         Chats
+// @Produce      json
+// @Param        chatID     path      string  true  "Chat ID"
+// @Param        messageID  path      string  true  "Target Message ID to activate"
+// @Success      200        {object}  StatusResponse
+// @Failure      404        {object}  ErrorResponse
+// @Router       /v1/chats/{chatID}/messages/{messageID}/activate [post]
+func (h *ChatHandler) HandleSwitchBranch(w http.ResponseWriter, r *http.Request) {
+	chatID := chi.URLParam(r, "chatID")
+	messageID := chi.URLParam(r, "messageID")
+
+	if err := h.chatService.SwitchBranch(r.Context(), chatID, messageID); err != nil {
+		respondWithError(w, err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
+}

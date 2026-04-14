@@ -96,6 +96,74 @@ func (_c *MockChatService_DeleteChat_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// GetChatTree provides a mock function for the type MockChatService
+func (_mock *MockChatService) GetChatTree(ctx context.Context, chatID string) (*model.FullChat, error) {
+	ret := _mock.Called(ctx, chatID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetChatTree")
+	}
+
+	var r0 *model.FullChat
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*model.FullChat, error)); ok {
+		return returnFunc(ctx, chatID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *model.FullChat); ok {
+		r0 = returnFunc(ctx, chatID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.FullChat)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, chatID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatService_GetChatTree_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetChatTree'
+type MockChatService_GetChatTree_Call struct {
+	*mock.Call
+}
+
+// GetChatTree is a helper method to define mock.On call
+//   - ctx context.Context
+//   - chatID string
+func (_e *MockChatService_Expecter) GetChatTree(ctx interface{}, chatID interface{}) *MockChatService_GetChatTree_Call {
+	return &MockChatService_GetChatTree_Call{Call: _e.mock.On("GetChatTree", ctx, chatID)}
+}
+
+func (_c *MockChatService_GetChatTree_Call) Run(run func(ctx context.Context, chatID string)) *MockChatService_GetChatTree_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatService_GetChatTree_Call) Return(fullChat *model.FullChat, err error) *MockChatService_GetChatTree_Call {
+	_c.Call.Return(fullChat, err)
+	return _c
+}
+
+func (_c *MockChatService_GetChatTree_Call) RunAndReturn(run func(ctx context.Context, chatID string) (*model.FullChat, error)) *MockChatService_GetChatTree_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetFullChat provides a mock function for the type MockChatService
 func (_mock *MockChatService) GetFullChat(ctx context.Context, chatID string) (*model.FullChat, error) {
 	ret := _mock.Called(ctx, chatID)
@@ -339,6 +407,69 @@ func (_c *MockChatService_RegenerateMessage_Call) Return() *MockChatService_Rege
 
 func (_c *MockChatService_RegenerateMessage_Call) RunAndReturn(run func(ctx context.Context, chatID string, originalAssistantMessageID string, req *service.RegenerateMessageRequest, streamChan chan<- model.StreamResponse)) *MockChatService_RegenerateMessage_Call {
 	_c.Run(run)
+	return _c
+}
+
+// SwitchBranch provides a mock function for the type MockChatService
+func (_mock *MockChatService) SwitchBranch(ctx context.Context, chatID string, targetMessageID string) error {
+	ret := _mock.Called(ctx, chatID, targetMessageID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SwitchBranch")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, chatID, targetMessageID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatService_SwitchBranch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SwitchBranch'
+type MockChatService_SwitchBranch_Call struct {
+	*mock.Call
+}
+
+// SwitchBranch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - chatID string
+//   - targetMessageID string
+func (_e *MockChatService_Expecter) SwitchBranch(ctx interface{}, chatID interface{}, targetMessageID interface{}) *MockChatService_SwitchBranch_Call {
+	return &MockChatService_SwitchBranch_Call{Call: _e.mock.On("SwitchBranch", ctx, chatID, targetMessageID)}
+}
+
+func (_c *MockChatService_SwitchBranch_Call) Run(run func(ctx context.Context, chatID string, targetMessageID string)) *MockChatService_SwitchBranch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatService_SwitchBranch_Call) Return(err error) *MockChatService_SwitchBranch_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatService_SwitchBranch_Call) RunAndReturn(run func(ctx context.Context, chatID string, targetMessageID string) error) *MockChatService_SwitchBranch_Call {
+	_c.Call.Return(run)
 	return _c
 }
 

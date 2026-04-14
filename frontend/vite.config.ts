@@ -10,7 +10,7 @@ export default defineConfig({
       // Proxy all requests starting with /api to the backend server.
       // This is crucial for avoiding CORS issues during development.
       '/api': {
-        target: 'http://localhost:8000', // The address of your Go backend
+        target: 'http://flow-ai:8000', // The address of your Go backend inside Docker
         changeOrigin: true, // Recommended for virtual hosts
       },
     },

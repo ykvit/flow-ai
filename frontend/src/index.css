@@ -1,5 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light dark;
@@ -7,41 +10,121 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Custom variables for the 'Academic' look */
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-body {
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-  background-color: #121212; /* Black background */
-  color: #e0e0e0;
-}
-
-/* --- Placeholder Styles --- */
-.app-container {
+  padding: 0;
   width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* --- Custom Scrollbar (M3 style) --- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--md-sys-color-outline-variant, rgba(128, 128, 128, 0.3));
+  border-radius: 100px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--md-sys-color-outline, rgba(128, 128, 128, 0.5));
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--md-sys-color-outline-variant, rgba(128,128,128,0.3)) transparent;
+}
+
+/* --- Animations --- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* --- Glassmorphism --- */
+.glass {
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+}
+
+.glass-light {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+.glass-dark {
+  background-color: rgba(9, 9, 11, 0.7);
+}
+
+/* --- Streaming cursor --- */
+.streaming-cursor::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background-color: currentColor;
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* --- Thinking pulse --- */
+.thinking-dots {
+  display: inline-flex;
+  gap: 4px;
   align-items: center;
-  gap: 2rem;
+  padding: 4px 0;
 }
 
-.circle {
-  width: 150px;
-  height: 150px;
+.thinking-dots span {
+  width: 4px;
+  height: 4px;
+  background-color: currentColor;
   border-radius: 50%;
-  transition: background-color 0.3s ease;
+  animation: pulse 1.4s infinite;
+  opacity: 0.4;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-
-body {
-  font-family: 'Roboto', sans-serif;
-  margin: 0;
-}
+.thinking-dots span:nth-of-type(2) { animation-delay: 0.2s; }
+.thinking-dots span:nth-of-type(3) { animation-delay: 0.4s; }

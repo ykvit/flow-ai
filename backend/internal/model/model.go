@@ -22,6 +22,7 @@ type Message struct {
 	Content   string          `json:"content" example:"The Roman Empire fell in 476 AD."`
 	Model     *string         `json:"model,omitempty" example:"qwen:0.5b"`
 	Timestamp time.Time       `json:"timestamp" example:"2025-09-08T14:05:00Z"`
+	IsActive  bool            `json:"is_active"`
 	Metadata  json.RawMessage `json:"metadata,omitempty" swaggertype:"object"`
 	Context   json.RawMessage `json:"-"`
 }
@@ -34,6 +35,7 @@ type FullChat struct {
 
 // StreamResponse is the structure for a single chunk in a streaming response.
 type StreamResponse struct {
+	ChatID  string          `json:"chat_id,omitempty"`
 	Content string          `json:"content" example:"Hello"`
 	Done    bool            `json:"done" example:"false"`
 	Context json.RawMessage `json:"context,omitempty" swaggertype:"object"`

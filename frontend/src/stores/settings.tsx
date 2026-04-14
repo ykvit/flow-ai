@@ -13,7 +13,7 @@ interface SettingsState {
     resetSuccess: () => void; 
 }
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = '/api/v1';
 
 export const useSettingsStore = create<SettingsState>((set) => ({
     settings: {
@@ -39,8 +39,12 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     updateSettings: async (payload: UpdateSettingsPayload) => {
         set({ isLoading: true, error: null, isSuccess: false });
         try {
-            const response = await axios.post<Settings>(`${API_BASE_URL}/settings`, payload);
-            set({ settings: response.data, isLoading: false, isSuccess: true });
+            await axios.post(`${API_BASE_URL}/settings`, payload);
+            set((state) => ({ 
+                settings: { ...state.settings, ...payload }, 
+                isLoading: false, 
+                isSuccess: true 
+            }));
         } catch (error) {
             set({ error: 'Не вдалося зберегти налаштування', isLoading: false });
             console.error(error);

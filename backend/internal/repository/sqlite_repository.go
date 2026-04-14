@@ -146,24 +146,25 @@ func (r *sqliteRepository) AddMessage(ctx context.Context, message *model.Messag
 
 func (r *sqliteRepository) GetMessageByID(ctx context.Context, messageID string) (*model.Message, error) {
 	query := `
-		SELECT id, chat_id, parent_id, role, content, model, timestamp, metadata, context
+		SELECT id, chat_id, parent_id, role, content, model, timestamp, metadata, context, is_active
 		FROM messages
 		WHERE id = ?
 	`
 	row := r.db.QueryRowContext(ctx, query, messageID)
 	var msg model.Message
 	var chatID string
-	// Use `sql.NullString` and `sql.Null` types for columns that can be NULL
-	// to prevent `Scan` from failing.
 	var metadata, context, parentID, modelName sql.NullString
+	var isActive bool
 
-	err := row.Scan(&msg.ID, &chatID, &parentID, &msg.Role, &msg.Content, &modelName, &msg.Timestamp, &metadata, &context)
+	err := row.Scan(&msg.ID, &chatID, &parentID, &msg.Role, &msg.Content, &modelName, &msg.Timestamp, &metadata, &context, &isActive)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
+
+	msg.IsActive = isActive
 
 	// Safely assign values from nullable columns to the struct fields.
 	if parentID.Valid {
@@ -193,7 +194,7 @@ func (r *sqliteRepository) GetActiveMessagesByChatIDTx(ctx context.Context, tx *
 // getActiveMessagesByChatID is a private helper that can run on either a `*sql.DB` or `*sql.Tx`.
 func (r *sqliteRepository) getActiveMessagesByChatID(ctx context.Context, q queryable, chatID string) ([]model.Message, error) {
 	query := `
-		SELECT id, parent_id, role, content, model, timestamp, metadata, context
+		SELECT id, parent_id, role, content, model, timestamp, metadata, context, is_active
 		FROM messages
 		WHERE chat_id = ? AND is_active = TRUE
 		ORDER BY timestamp ASC
@@ -212,8 +213,53 @@ func (r *sqliteRepository) getActiveMessagesByChatID(ctx context.Context, q quer
 	for rows.Next() {
 		var msg model.Message
 		var metadata, context, parentID, modelName sql.NullString
+		var isActive bool
 
-		if err := rows.Scan(&msg.ID, &parentID, &msg.Role, &msg.Content, &modelName, &msg.Timestamp, &metadata, &context); err != nil {
+		if err := rows.Scan(&msg.ID, &parentID, &msg.Role, &msg.Content, &modelName, &msg.Timestamp, &metadata, &context, &isActive); err != nil {
+			return nil, err
+		}
+		msg.IsActive = isActive
+
+		if parentID.Valid {
+			msg.ParentID = &parentID.String
+		}
+		if modelName.Valid {
+			msg.Model = &modelName.String
+		}
+		if metadata.Valid {
+			msg.Metadata = json.RawMessage(metadata.String)
+		}
+		if context.Valid {
+			msg.Context = json.RawMessage(context.String)
+		}
+
+		messages = append(messages, msg)
+	}
+	return messages, nil
+}
+
+func (r *sqliteRepository) GetMessagesByChatID(ctx context.Context, chatID string) ([]model.Message, error) {
+	query := `
+		SELECT id, parent_id, role, content, model, timestamp, metadata, context, is_active
+		FROM messages
+		WHERE chat_id = ?
+		ORDER BY timestamp ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, chatID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	var messages []model.Message
+	for rows.Next() {
+		var msg model.Message
+		var metadata, context, parentID, modelName sql.NullString
+		var isActive bool
+
+		if err := rows.Scan(&msg.ID, &parentID, &msg.Role, &msg.Content, &modelName, &msg.Timestamp, &metadata, &context, &isActive); err != nil {
 			return nil, err
 		}
 
@@ -229,6 +275,7 @@ func (r *sqliteRepository) getActiveMessagesByChatID(ctx context.Context, q quer
 		if context.Valid {
 			msg.Context = json.RawMessage(context.String)
 		}
+		msg.IsActive = isActive
 
 		messages = append(messages, msg)
 	}
@@ -314,6 +361,28 @@ func (r *sqliteRepository) DeactivateBranchTx(ctx context.Context, tx *sql.Tx, m
 	`
 	_, err := tx.ExecContext(ctx, query, messageID)
 	return err
+}
+
+func (r *sqliteRepository) ActivateBranchTx(ctx context.Context, tx *sql.Tx, messageID string) error {
+	// 1. Activate this message
+	query := "UPDATE messages SET is_active = TRUE WHERE id = ?"
+	if _, err := tx.ExecContext(ctx, query, messageID); err != nil {
+		return err
+	}
+
+	// 2. Recursively activate the "preferred" child path.
+	// We'll pick the child that was most recently updated or just the first child.
+	// For now, let's just pick one child to make it active.
+	var nextChildID string
+	childQuery := "SELECT id FROM messages WHERE parent_id = ? ORDER BY timestamp DESC LIMIT 1"
+	err := tx.QueryRowContext(ctx, childQuery, messageID).Scan(&nextChildID)
+	if err == nil {
+		return r.ActivateBranchTx(ctx, tx, nextChildID)
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+
+	return nil
 }
 
 func (r *sqliteRepository) UpdateChatTimestampTx(ctx context.Context, tx *sql.Tx, chatID string) error {

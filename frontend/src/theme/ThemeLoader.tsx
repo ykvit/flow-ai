@@ -1,36 +1,47 @@
-
 import { useEffect } from 'react';
 import { useColorScheme } from '@mui/material/styles';
-
-const basePath = './color-schemes/'; 
 
 type Contrast = 'normal' | 'mc' | 'hc';
 
 const ThemeLoader = () => {
   const { mode } = useColorScheme();
-  const contrast: Contrast = 'normal'; 
+  const contrast: Contrast = 'normal';
 
   useEffect(() => {
-    switch (`${mode}-${contrast}`) {
+    // Remove previous theme classes
+    document.documentElement.classList.remove('dark', 'light', 'dark-hc', 'dark-mc', 'light-hc', 'light-mc');
+
+    const themeKey = `${mode}-${contrast}`;
+    let className: string;
+
+    switch (themeKey) {
       case 'dark-hc':
-        import(`${basePath}dark-hc.css`);
+        import('./flow-ai-color-sheme/css/dark-hc.css');
+        className = 'dark-hc';
         break;
       case 'dark-mc':
-        import(`${basePath}dark-mc.css`);
+        import('./flow-ai-color-sheme/css/dark-mc.css');
+        className = 'dark-mc';
         break;
       case 'light-hc':
-        import(`${basePath}light-hc.css`);
+        import('./flow-ai-color-sheme/css/light-hc.css');
+        className = 'light-hc';
         break;
       case 'light-mc':
-        import(`${basePath}light-mc.css`);
+        import('./flow-ai-color-sheme/css/light-mc.css');
+        className = 'light-mc';
         break;
       case 'light-normal':
-        import(`${basePath}light.css`);
+        import('./flow-ai-color-sheme/css/light.css');
+        className = 'light';
         break;
       default: // 'dark-normal'
-        import(`${basePath}dark.css`);
+        import('./flow-ai-color-sheme/css/dark.css');
+        className = 'dark';
         break;
     }
+
+    document.documentElement.classList.add(className);
   }, [mode, contrast]);
 
   return null;
