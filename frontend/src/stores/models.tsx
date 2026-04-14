@@ -23,7 +23,7 @@ interface ModelsState {
     pullModel: (payload: PullModelPayload) => Promise<void>;
 }
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = '/api/v1';
 
 export const useModelsStore = create<ModelsState>((set, get) => ({
     models: [],

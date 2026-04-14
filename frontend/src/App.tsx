@@ -1,62 +1,29 @@
-import { 
-  Button, 
-  Box, 
-  Typography, 
-  AppBar, 
-  Toolbar,
-  IconButton 
-} from '@mui/material';
-import { useColorScheme } from '@mui/material/styles';
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import Brightness7Icon from '@mui/icons-material/Brightness7';
-import ThemeLoader from './theme/ThemeLoader'; 
-
-function ModeSwitcher() {
-  const { mode, setMode } = useColorScheme();
-  return (
-    <IconButton onClick={() => setMode(mode === 'light' ? 'dark' : 'light')} color="inherit">
-      {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
-    </IconButton>
-  );
-}
-
+import { useEffect, useState } from 'react';
+import ThemeLoader from './theme/ThemeLoader';
+import ChatLayout from './components/ChatLayout';
+import SettingsDialog from './components/SettingsDialog';
+import { useChatStore } from './stores/chats';
+import { useSettingsStore } from './stores/settings';
+import { useModelsStore } from './stores/models';
 
 function App() {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const fetchChats = useChatStore((s) => s.fetchChats);
+  const fetchSettings = useSettingsStore((s) => s.fetchSettings);
+  const fetchModels = useModelsStore((s) => s.fetchModels);
+
+  // Initialize data on mount
+  useEffect(() => {
+    fetchChats();
+    fetchSettings();
+    fetchModels();
+  }, [fetchChats, fetchSettings, fetchModels]);
+
   return (
     <>
-      <ThemeLoader /> 
-      
-      <AppBar position="static" enableColorOnDark>
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Flow-AI
-          </Typography>
-          <ModeSwitcher />
-        </Toolbar>
-      </AppBar>
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 2,
-          p: 4,
-          bgcolor: 'var(--md-sys-color-background)',
-          color: 'var(--md-sys-color-on-background)',
-        }}
-      >
-        <Typography variant="h4" component="h1">
-          Вітаємо в Material Design 3!
-        </Typography>
-        <Typography>
-          our cheme
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="contained">main btn</Button>
-          <Button variant="outlined">second btn</Button>
-          <Button variant="text">text btn</Button>
-        </Box>
-      </Box>
+      <ThemeLoader />
+      <ChatLayout onOpenSettings={() => setSettingsOpen(true)} />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }

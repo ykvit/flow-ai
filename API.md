@@ -23,8 +23,10 @@ The API is structured around three main resources: **Chats**, **Models**, and **
 This group of endpoints allows you to manage the entire lifecycle of a conversation. You can list all chats, retrieve a specific chat with its full message history, create new messages (which can also create a new chat), regenerate responses, and delete chats.
 
 -   `GET /api/v1/chats` - List all chats.
--   `GET /api/v1/chats/{chatID}` - Get a single chat with all messages.
+-   `GET /api/v1/chats/{chatID}/tree` - Get a conversation tree for a specific chat.
 -   `POST /api/v1/chats/messages` - Create a new message (and optionally a new chat).
+-   `POST /api/v1/chats/{chatID}/messages/{messageID}/activate` - Activate a specific message branch.
+-   `POST /api/v1/chats/{chatID}/messages/{messageID}/regenerate` - Regenerate a response from a specific point.
 -   `DELETE /api/v1/chats/{chatID}` - Delete a chat.
 -   ... and more. See Swagger UI for details.
 

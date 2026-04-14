@@ -21,7 +21,7 @@ Flow-AI is a powerful, self-hostable, and user-friendly web interface for intera
     -   **API Documentation:** OpenAPI (Swagger) via `swaggo`
 -   **LLM Engine:** [Ollama](https://ollama.com/)
 -   **Frontend:** React (Vite)
-    -   **UI:** Material Web Components (`@material/web`)
+    -   **UI:** Material UI (MUI) & Framer Motion
     -   **State Management:** Zustand
 -   **Deployment:** Docker & Docker Compose, managed via `Makefile`.
 

@@ -54,8 +54,10 @@ func NewRouter(chatHandler *ChatHandler, modelHandler *ModelHandler) *chi.Mux {
 			// --- Chats ---
 			r.Get("/chats", chatHandler.GetChats)
 			r.Get("/chats/{chatID}", chatHandler.GetChat)
+			r.Get("/chats/{chatID}/tree", chatHandler.GetChatTree)
 			r.Put("/chats/{chatID}/title", chatHandler.UpdateChatTitle)
 			r.Delete("/chats/{chatID}", chatHandler.HandleDeleteChat)
+			r.Post("/chats/{chatID}/messages/{messageID}/activate", chatHandler.HandleSwitchBranch)
 
 			// --- Models ---
 			r.Get("/models", modelHandler.HandleListModels)

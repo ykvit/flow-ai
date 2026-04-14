@@ -10,11 +10,12 @@ export interface Chat {
 export interface Message {
   content: string;
   id: string;
-  metadata: object;
+  metadata: any;
   model: string;
   parent_id: string;
   role: 'user' | 'assistant';
   timestamp: string;
+  is_active: boolean;
 }
 
 export interface ChatWithMessages extends Chat {
@@ -39,4 +40,11 @@ export interface CreateMessagePayload {
 
 export interface UpdateTitlePayload {
   title: string;
+}
+
+export interface RegenerateMessagePayload {
+  chat_id: string;
+  message_id: string;
+  model?: string;
+  system_prompt?: string;
 }

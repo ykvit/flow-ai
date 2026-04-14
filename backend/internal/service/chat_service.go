@@ -94,6 +94,85 @@ func (s *ChatService) GetFullChat(ctx context.Context, chatID string) (*model.Fu
 	return &model.FullChat{Chat: *chat, Messages: messages}, nil
 }
 
+func (s *ChatService) GetChatTree(ctx context.Context, chatID string) (*model.FullChat, error) {
+	chat, err := s.repo.GetChat(ctx, chatID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, fmt.Errorf("%w: chat with id %s", app_errors.ErrNotFound, chatID)
+		}
+		return nil, fmt.Errorf("could not get chat: %w", err)
+	}
+
+	messages, err := s.repo.GetMessagesByChatID(ctx, chatID)
+	if err != nil {
+		return nil, fmt.Errorf("could not get messages: %w", err)
+	}
+
+	return &model.FullChat{Chat: *chat, Messages: messages}, nil
+}
+
+func (s *ChatService) SwitchBranch(ctx context.Context, chatID string, targetMessageID string) error {
+	slog.Info("Switching branch", "chat_id", chatID, "target_message_id", targetMessageID)
+
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			slog.Error("Failed to rollback SwitchBranch transaction", "error", err)
+		}
+	}()
+
+	msg, err := s.repo.GetMessageByID(ctx, targetMessageID)
+	if err != nil {
+		return err
+	}
+
+	if msg.ParentID != nil {
+		// Deactivate all descendants of the parent that are currently active.
+		// In our structure, there should only be one active child branch.
+		// We call DeactivateBranch on the parent's current active children.
+		activeMsgs, err := s.repo.GetActiveMessagesByChatIDTx(ctx, tx, chatID)
+		if err != nil {
+			return err
+		}
+
+		// Find the sibling that is currently active.
+		for _, am := range activeMsgs {
+			if am.ParentID != nil && *am.ParentID == *msg.ParentID && am.ID != targetMessageID {
+				if err := s.repo.DeactivateBranchTx(ctx, tx, am.ID); err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		// If it's a root message, deactivate all current active messages.
+		activeMsgs, err := s.repo.GetActiveMessagesByChatIDTx(ctx, tx, chatID)
+		if err != nil {
+			return err
+		}
+		for _, am := range activeMsgs {
+			if am.ParentID == nil && am.ID != targetMessageID {
+				if err := s.repo.DeactivateBranchTx(ctx, tx, am.ID); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	// Activate the new branch recursively.
+	if err := s.repo.ActivateBranchTx(ctx, tx, targetMessageID); err != nil {
+		return err
+	}
+
+	if err := s.repo.UpdateChatTimestampTx(ctx, tx, chatID); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 // resolveModels determines the final models and system prompt to use for a request,
 // layering request-specific overrides on top of global settings.
 func (s *ChatService) resolveModels(ctx context.Context, req *CreateMessageRequest, currentSettings *Settings) (mainModel, supportModel, systemPrompt string, err error) {
@@ -226,7 +305,7 @@ func (s *ChatService) HandleNewMessage(
 
 	// Consume from the LLM stream and forward to the client.
 	for chunk := range llmStreamChan {
-		streamChan <- model.StreamResponse{Content: chunk.Content, Done: chunk.Done, Error: chunk.Error}
+		streamChan <- model.StreamResponse{ChatID: chatID, Content: chunk.Content, Done: chunk.Done, Error: chunk.Error}
 		if chunk.Error != "" {
 			break // Stop processing on LLM error.
 		}
@@ -358,7 +437,7 @@ func (s *ChatService) RegenerateMessage(
 	}()
 
 	for chunk := range llmStreamChan {
-		streamChan <- model.StreamResponse{Content: chunk.Content, Done: chunk.Done, Error: chunk.Error}
+		streamChan <- model.StreamResponse{ChatID: chatID, Content: chunk.Content, Done: chunk.Done, Error: chunk.Error}
 		if chunk.Error != "" {
 			return // The transaction will be rolled back by the defer statement.
 		}
