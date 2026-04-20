@@ -16,7 +16,7 @@
     "@material/web": "^2.4.1",
     "@mui/icons-material": "^9.0.0",
     "@mui/material": "^9.0.0",
-    "axios": "^1.15.0",
+    "axios": "^1.15.1",
     "framer-motion": "^12.38.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
@@ -24,15 +24,15 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.60.1",
+    "@rollup/rollup-linux-x64-gnu": "^4.60.2",
     "@testing-library/jest-dom": "^6.4.8",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "jsdom": "^29.0.2",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.8",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.9",
     "vitest": "^4.1.4"
   }
 }
